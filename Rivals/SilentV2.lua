@@ -32,7 +32,7 @@ local FullSettings = {
             Toggle = true,
             HitPart = "HitboxHead",
 			HitPartList = {"Head", "LeftFoot", "LeftHand", "LeftLowerArm", "LeftLowerLeg", "LeftUpperArm", "LowerTorso", "RightFoot", "RightHand", "RightLowerArm", "RightLowerLeg", "RightUpperArm", "RightUpperLeg", "UpperTorso", "HitboxBody", "FakeMass", "HitboxBodySmall", "HumanoidRootPart"},
-            TriggerKey = Enum.UserInputType.MouseButton2,
+            TriggerKey = Enum.KeyCode.Z,
         }
     },
 	Esp = {
