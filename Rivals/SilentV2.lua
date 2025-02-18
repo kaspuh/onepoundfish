@@ -25,7 +25,7 @@ local FullSettings = {
             LockColor = Color3.fromRGB(255, 0, 0),
 			OffColor = Color3.fromRGB(150, 150, 150),
             Filled = false,
-            Size = 200
+            Size = 20
         },
         Values = {
             Enable = true,
