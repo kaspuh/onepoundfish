@@ -25,14 +25,14 @@ local FullSettings = {
             LockColor = Color3.fromRGB(255, 0, 0),
 			OffColor = Color3.fromRGB(150, 150, 150),
             Filled = false,
-            Size = 20
+            Size = 100
         },
         Values = {
             Enable = true,
             Toggle = true,
             HitPart = "HitboxHead",
 			HitPartList = {"Head", "LeftFoot", "LeftHand", "LeftLowerArm", "LeftLowerLeg", "LeftUpperArm", "LowerTorso", "RightFoot", "RightHand", "RightLowerArm", "RightLowerLeg", "RightUpperArm", "RightUpperLeg", "UpperTorso", "HitboxBody", "FakeMass", "HitboxBodySmall", "HumanoidRootPart"},
-            TriggerKey = Enum.KeyCode.Z,
+            TriggerKey = Enum.UserInputType.MouseButton3,
         }
     },
 	Esp = {
@@ -113,18 +113,16 @@ do -- Aimbot
 						FOV.Color = FullSettings.AimBot.Fov.Color
 					end
 
-					if (FullSettings.AimBot.Values.Toggle == true and lock == false) or (FullSettings.AimBot.Values.Toggle == false and not UIS:IsKeyPressed(FullSettings.AimBot.Values.TriggerKey)) then
+					if (FullSettings.AimBot.Values.Toggle == true and lock == false) or (FullSettings.AimBot.Values.Toggle == false and not UIS:IsMouseButtonPressed(FullSettings.AimBot.Values.TriggerKey)) then
 						FOV.Color = FullSettings.AimBot.Fov.OffColor
 					end
 
 
 					if Target and Target.Character and Target.Character:FindFirstChild(FullSettings.AimBot.Values.HitPart) and lock and camera:WorldToViewportPoint(Target.Character[FullSettings.AimBot.Values.HitPart].Position).Z > 0 then
-						if not FullSettings.AimBot.Values.Toggle and FullSettings.AimBot.Values.TriggerKey and not UIS:IsKeyPressed(FullSettings.AimBot.Values.TriggerKey) then continue end
+						if not FullSettings.AimBot.Values.Toggle and FullSettings.AimBot.Values.TriggerKey and not UIS:IsMouseButtonPressed(FullSettings.AimBot.Values.TriggerKey) then continue end
 						camera.CFrame = CFrame.new(camera.CFrame.Position + (Target.Character[FullSettings.AimBot.Values.HitPart].Position - camera.CFrame.Position).Unit * 0.5, Target.Character[FullSettings.AimBot.Values.HitPart].Position)
 						
-						VirtualInputManager:SendMouseButtonEvent(Center.X, Center.Y, 0, true, game, 0)
-						task.wait()
-						VirtualInputManager:SendMouseButtonEvent(Center.X, Center.Y, 0, false, game, 0)
+					
 					end
 				end
 			end
