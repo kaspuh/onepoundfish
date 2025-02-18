@@ -122,7 +122,28 @@ do -- Aimbot
 						if not FullSettings.AimBot.Values.Toggle and FullSettings.AimBot.Values.TriggerKey and not UIS:IsMouseButtonPressed(FullSettings.AimBot.Values.TriggerKey) then continue end
 						camera.CFrame = CFrame.new(camera.CFrame.Position + (Target.Character[FullSettings.AimBot.Values.HitPart].Position - camera.CFrame.Position).Unit * 0.5, Target.Character[FullSettings.AimBot.Values.HitPart].Position)
 						
-					
+
+                                                  local ContextActionService = game:GetService("ContextActionService")
+
+						local actionName = "CustomLeftClickAction"
+
+						local function handleLeftClick(actionName, inputState, inputObject)
+					    if inputState == Enum.UserInputState.Begin then
+   					     local Center = game:GetService("Workspace").CurrentCamera.CFrame.Position
+
+
+      					  VirtualInputManager:SendMouseButtonEvent(Center.X, Center.Y, 0, true, game, 0)
+        
+
+       					 task.wait()
+        
+       					 VirtualInputManager:SendMouseButtonEvent(Center.X, Center.Y, 0, false, game, 0)
+        
+       					 return Enum.ContextActionResult.Sink
+  					  end
+					end
+
+					ContextActionService:BindAction(actionName, handleLeftClick, false, Enum.UserInputType.MouseButton1)
 					end
 				end
 			end
