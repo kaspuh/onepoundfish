@@ -4,6 +4,7 @@ local teams = game:GetService("Teams")
 local players = game:GetService("Players")
 local camera = workspace.CurrentCamera
 local userinputservice = game:GetService("UserInputService")
+local easingstrength = 0.1
 
 --// variables
 local vec2 = Vector2.new
@@ -147,20 +148,17 @@ end
 
 local function aimat()
     if targetPart then
-
         local partPosition, onScreen = camera:WorldToViewportPoint(targetPart.Position)
 
         if onScreen then
             local mouseLocation = userinputservice:GetMouseLocation()
             local targetMousePosition = Vector2.new(partPosition.X, partPosition.Y)
 
-
             local delta = targetMousePosition - mouseLocation
             local distance = delta.Magnitude
-            local easing = 1.2
 
             if distance > 1 then
-                local moveVector = delta * easing
+                local moveVector = delta * easingstrength -- Use adjustable easing
                 getfenv().mousemoverel(moveVector.X, moveVector.Y)
             end
         end
@@ -190,6 +188,8 @@ local window = ui.newWindow({
 local menu = window:addMenu({
     text = 'Main'
 })
+
+
 
 local aimbotsection
 if env == "Xeno" then
@@ -265,6 +265,15 @@ else
     end
 end)
 end
+local easingslider = aimbotsection:addSlider({
+    text = 'Easing Strength',
+    min = 0.1,
+    max = 5,
+    default = 1.2,
+    float = true,
+    step = 0.1
+})
+
 
 local espsection = menu:addSection({
     text = "ESP",
@@ -321,6 +330,10 @@ end)
 jumpheightslider:bindToEvent('onNewValue', function(jumpheightfunc)
     getgenv().jumpheightvalue = jumpheightfunc
     print("JumpPower slider value is: " .. string.format("%.0f", jumpheightfunc))
+end)
+easingslider:bindToEvent('onNewValue', function(value)
+    easingstrength = value
+    print("Easing Strength set to:", value)
 end)
 
 esptoggle:bindToEvent('onToggle', function(state)
@@ -385,6 +398,7 @@ esptoggle:bindToEvent('onToggle', function(state)
         end
     end
 end)
+
 
 
 function isNumber(str)
