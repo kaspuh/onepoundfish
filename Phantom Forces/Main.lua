@@ -268,8 +268,8 @@ end
 local easingslider = aimbotsection:addSlider({
     text = 'Easing Strength',
     min = 0.1,
-    max = 5,
-    default = 1.2,
+    max = 1.5,
+    default = 0.1,
     float = true,
     step = 0.1
 })
