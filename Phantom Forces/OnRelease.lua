@@ -11,7 +11,7 @@ local is_visibility_check_enabled = true
 local vec2 = Vector2.new
 local storage = { esp_cache = {} }
 local is_right_click_held = false
-local target_part = nil -- The part to aim at
+local target_part = nil
 local features = {
     box = {
         color = Color3.fromRGB(255, 255, 255),
@@ -59,6 +59,8 @@ function cache_object(object)
     if not storage.esp_cache[object] then
         storage.esp_cache[object] = {
             box_square = Drawing.new("Square"),
+            box_outline = Drawing.new("Square"),
+            box_inline = Drawing.new("Square"),
             tracer_line = Drawing.new("Line"),
             distance_label = Drawing.new("Text"),
             name_label = Drawing.new("Text")
@@ -224,7 +226,10 @@ else
         text = 'Enabled',
         state = false
     })
-
+    local wall_check_toggle = aimbot_section:addToggle({
+    text = 'Wall Check',
+    state = false -- Default to enabled
+    })
     aimbot_toggle:bindToEvent('onToggle', function(new_state)
         is_aimbot_enabled = new_state
         if is_aimbot_enabled then
@@ -276,10 +281,6 @@ else
     end)
 end
 
-local wall_check_toggle = aimbot_section:addToggle({
-    text = 'Wall Check',
-    state = false -- Default to enabled
-})
 
 local easing_slider = aimbot_section:addSlider({
     text = 'Strength',
@@ -401,16 +402,35 @@ esp_toggle:bindToEvent('onToggle', function(state)
                             local box_scale = vec2(math.round(3 * scale), math.round(4 * scale))
 
                             -- Box ESP
-                             local box_color = is_visible(head) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 0, 0)
+                            local box_color = is_visible(head) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 0, 0)
                             if box_toggle:getState() then
+                                -- Main Box
                                 cache.box_square.Visible = true
                                 cache.box_square.Color = box_color
                                 cache.box_square.Thickness = features.box.border_size_pixel
                                 cache.box_square.Position = vec2(w2s.X - box_scale.X / 2, w2s.Y - box_scale.Y / 2)
                                 cache.box_square.Size = box_scale
                                 cache.box_square.Filled = false
+
+                                -- Outline (slightly thicker than the main box)
+                                cache.box_outline.Visible = true
+                                cache.box_outline.Color = Color3.new(0, 0, 0)
+                                cache.box_outline.Thickness = features.box.border_size_pixel + 0.5
+                                cache.box_outline.Position = vec2(w2s.X - box_scale.X / 2 - 1, w2s.Y - box_scale.Y / 2 - 1)
+                                cache.box_outline.Size = vec2(box_scale.X + 2, box_scale.Y + 2)
+                                cache.box_outline.Filled = false
+
+                                -- Inline (slightly thinner than the main box)
+                                cache.box_inline.Visible = true
+                                cache.box_inline.Color = box_color
+                                cache.box_inline.Thickness = features.box.border_size_pixel
+                                cache.box_inline.Position = vec2(w2s.X - box_scale.X / 2 + 1, w2s.Y - box_scale.Y / 2 + 1)
+                                cache.box_inline.Size = vec2(box_scale.X - 2, box_scale.Y - 2)
+                                cache.box_inline.Filled = false
                             else
                                 cache.box_square.Visible = false
+                                cache.box_outline.Visible = false
+                                cache.box_inline.Visible = false
                             end
 
                             -- Tracer ESP
