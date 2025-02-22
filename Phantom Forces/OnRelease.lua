@@ -124,33 +124,28 @@ local function get_closest_player()
             continue
         end
 
-        local has_decals = false
+        local head = get_head(player, "Head")
+        if head then
+            local ray = Ray.new(camera.CFrame.Position, (head.Position - camera.CFrame.Position).unit * 1000)
+            local part_position, on_screen = camera:WorldToViewportPoint(head.Position)
 
-        for _, child in ipairs(player:GetChildren()) do
-            if child:IsA("Part") then
-                for _, decal in ipairs(child:GetChildren()) do
-                    if decal:IsA("Decal") and decal.Texture == "rbxassetid://5196259061" then
-                        has_decals = true
+            if on_screen then
+                local distance_to_camera = (head.Position - camera.CFrame.Position).Magnitude
 
-                        local ray = Ray.new(camera.CFrame.Position, (child.Position - camera.CFrame.Position).unit * 1000)
-                        local part_position, on_screen = camera:WorldToViewportPoint(child.Position)
+                -- Prioritize heads within 20 studs
+                if distance_to_camera <= 20 then
+                    closest_part = head
+                    break
+                end
 
-                        if on_screen then
-                            local screen_position = Vector2.new(part_position.X, part_position.Y)
-                            local distance = (screen_position - screen_center).Magnitude
+                local screen_position = Vector2.new(part_position.X, part_position.Y)
+                local distance_to_center = (screen_position - screen_center).Magnitude
 
-                            if distance < shortest_distance then
-                                closest_part = child
-                                shortest_distance = distance
-                            end
-                        end
-                    end
+                if distance_to_center < shortest_distance then
+                    closest_part = head
+                    shortest_distance = distance_to_center
                 end
             end
-        end
-
-        if not has_decals then
-            print("No parts with the matching Decal ID found for:", player.Name)
         end
     end
 
