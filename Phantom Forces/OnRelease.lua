@@ -5,6 +5,7 @@ local players = game:GetService("Players")
 local camera = workspace.CurrentCamera
 local userinputservice = game:GetService("UserInputService")
 local easingstrength = 0.1
+local isVisibilityCheckEnabled = true
 
 --// variables
 local vec2 = Vector2.new
@@ -28,10 +29,9 @@ local features = {
 }
 
 --// functions
-local function getplayers()
+function getplayers()
     local entity_list = {}
-    local allTeams = workspace.Players:GetChildren()  -- Cache teams once
-    for _, team in ipairs(allTeams) do
+    for _, team in ipairs(workspace.Players:GetChildren()) do
         for _, player in ipairs(team:GetChildren()) do
             if player:IsA("Model") then
                 table.insert(entity_list, player)
@@ -179,6 +179,18 @@ local function aimat()
     end
 end
 
+local function isVisible(targetPart)
+    if isVisibilityCheckEnabled then  -- Check if the visibility toggle is enabled
+        local ray = Ray.new(camera.CFrame.Position, (targetPart.Position - camera.CFrame.Position).unit * 1000)
+        local hitPart, hitPosition = workspace:FindPartOnRay(ray, players.LocalPlayer.Character, false, true) -- dont know how the fuck this works but we keep it
+        
+        -- If the hitPart is not the target part, then there's an obstruction (wall)
+        return hitPart == targetPart
+    else
+        return true -- Always return true if the visibility check is disabled
+    end
+end
+
 
 local uiLoader = loadstring(game:HttpGet('https://raw.githubusercontent.com/topitbopit/dollarware/main/library.lua'))
 getgenv().jumpheightvalue = 30
@@ -279,6 +291,8 @@ else
     end
 end)
 end
+
+
 local easingslider = aimbotsection:addSlider({
     text = 'Strength',
     min = 0.1,
@@ -320,6 +334,10 @@ local nameToggle = espsection:addToggle({
     state = false,
 })
 
+local visibilityToggle = espsection:addToggle({
+    text = 'Wall Check',
+    state = false -- Default to enabled
+})
 local playerMenu = window:addMenu({
     text = 'Player'
 })
@@ -348,6 +366,7 @@ local jumpheightslider = playermods:addSlider({
 })
 
 
+
 tspeed = walkspeedslider:getValue()
 
 
@@ -372,41 +391,34 @@ easingslider:bindToEvent('onNewValue', function(value)
     easingstrength = value
     print("Easing Strength set to:", value)
 end)
-
+visibilityToggle:bindToEvent('onToggle', function(state)
+    isVisibilityCheckEnabled = state
+end)
 
 esptoggle:bindToEvent('onToggle', function(state)
     if state then
         esp_loop = runservice.RenderStepped:Connect(function()
-            local camPos = camera.CFrame.Position
-            local fov = camera.FieldOfView
-            local screenCenterX = camera.ViewportSize.X / 2
-            local screenCenterY = camera.ViewportSize.Y
-
-            -- Cache players
-            local players = getplayers()
-
-            for _, player in ipairs(players) do
+            for _, player in ipairs(getplayers()) do
                 if isenemy(player) then
+                    cacheobject(player)
+                end
+            end
+
+            for player, cache in pairs(storage.esp_cache) do
+                if player then
                     local torso = getbodypart(player, "Torso")
                     local head = gethead(player, "Head")
-                    local cache = storage.esp_cache[player]
-
-                    -- Only create cache if it doesn't exist
-                    if not cache then
-                        cacheobject(player)
-                        cache = storage.esp_cache[player]
-                    end
-
                     if torso then
                         local w2s, onscreen = camera:WorldToViewportPoint(torso.Position)
                         if onscreen then
-                            local scale = (1000 / (camPos - torso.Position).Magnitude) * (80 / fov)
+                            local scale = 1000 / (camera.CFrame.Position - torso.Position).Magnitude * 80 / camera.FieldOfView
                             local box_scale = vec2(math.round(3 * scale), math.round(4 * scale))
 
                             -- Box ESP
+                             local boxColor = isVisible(head) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 0, 0)
                             if boxToggle:getState() then
                                 cache.box_square.Visible = true
-                                cache.box_square.Color = features.box.color
+                                cache.box_square.Color = boxColor
                                 cache.box_square.Thickness = features.box.borderSizePixel
                                 cache.box_square.Position = vec2(w2s.X - box_scale.X / 2, w2s.Y - box_scale.Y / 2)
                                 cache.box_square.Size = box_scale
@@ -420,37 +432,30 @@ esptoggle:bindToEvent('onToggle', function(state)
                                 cache.tracer_line.Visible = true
                                 cache.tracer_line.Color = features.tracer.color
                                 cache.tracer_line.Thickness = features.tracer.thickness
-                                cache.tracer_line.From = vec2(screenCenterX, screenCenterY)
+                                cache.tracer_line.From = vec2(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
                                 cache.tracer_line.To = vec2(w2s.X, w2s.Y)
                             else
                                 cache.tracer_line.Visible = false
                             end
 
-                            -- Name ESP
-                            if nameToggle:getState() and head then
-                                local nameGui = head:FindFirstChildOfClass("BillboardGui")
-                                local nameLabel = nameGui and nameGui:FindFirstChildOfClass("TextLabel")
-                                if nameLabel then
-                                    cache.name_label.Visible = true
-                                    cache.name_label.Text = nameLabel.Text
-                                    cache.name_label.Size = features.distance_text.size
-                                    cache.name_label.Color = features.distance_text.color
-                                    cache.name_label.Center = true
-                                    cache.name_label.Outline = true
-                                    cache.name_label.Position = vec2(
-                                        cache.box_square.Position.X + (cache.box_square.Size.X / 2),
-                                        cache.box_square.Position.Y - 30
-                                    )
-                                else
-                                    cache.name_label.Visible = false
-                                end
+                            -- Name ESP (buggy, will be fixed soon)
+                             if nameToggle:getState() then
+                                cache.name_label.Visible = true
+                                cache.name_label.Text = head:FindFirstChildOfClass("BillboardGui"):FindFirstChildOfClass("TextLabel").Text
+                                cache.name_label.Size = features.distance_text.size
+                                cache.name_label.Color = features.distance_text.color
+                                cache.name_label.Center = true
+                                cache.name_label.Outline = true
+                                cache.name_label.Position = vec2(
+                                    cache.box_square.Position.X + (cache.box_square.Size.X / 2),
+                                    cache.box_square.Position.Y - 30
+                                )
                             else
                                 cache.name_label.Visible = false
                             end
-
                             -- Distance Text ESP
                             if distanceToggle:getState() then
-                                local distance = math.floor((camPos - torso.Position).Magnitude)
+                                local distance = math.floor((camera.CFrame.Position - torso.Position).Magnitude)
                                 cache.distance_label.Visible = true
                                 cache.distance_label.Text = tostring(distance) .. " studs"
                                 cache.distance_label.Size = features.distance_text.size
@@ -465,33 +470,21 @@ esptoggle:bindToEvent('onToggle', function(state)
                                 cache.distance_label.Visible = false
                             end
                         else
-                            -- Player is off-screen, remove ESP
-                            task.spawn(uncacheobject, player)
+                            uncacheobject(player)
                         end
                     else
-                        -- Player has no valid torso, remove ESP
-                        task.spawn(uncacheobject, player)
+                        uncacheobject(player)
                     end
                 else
-                    -- Player is not an enemy, remove ESP
-                    task.spawn(uncacheobject, player)
-                end
-            end
-
-            -- Cleanup ESP elements for missing players
-            for player, _ in pairs(storage.esp_cache) do
-                if not player or not table.find(players, player) then
-                    task.spawn(uncacheobject, player)
+                    uncacheobject(player)
                 end
             end
         end)
     else
-        -- Disable ESP and remove all cached elements
         if esp_loop then
             esp_loop:Disconnect()
-            esp_loop = nil
             for player in pairs(storage.esp_cache) do
-                task.spawn(uncacheobject, player)
+                uncacheobject(player)
             end
         end
     end
