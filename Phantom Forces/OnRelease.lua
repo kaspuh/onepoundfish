@@ -5,7 +5,7 @@ local players = game:GetService("Players")
 local camera = workspace.CurrentCamera
 local user_input_service = game:GetService("UserInputService")
 local easing_strength = 0.1
-local is_visibility_check_enabled = true
+local is_visibility_check_enabled = false
 
 --// variables
 local vec2 = Vector2.new
@@ -404,33 +404,27 @@ esp_toggle:bindToEvent('onToggle', function(state)
                             -- Box ESP
                             local box_color = is_visible(head) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 0, 0)
                             if box_toggle:getState() then
-                                -- Main Box
-                                cache.box_square.Visible = true
-                                cache.box_square.Color = box_color
-                                cache.box_square.Thickness = features.box.border_size_pixel
-                                cache.box_square.Position = vec2(w2s.X - box_scale.X / 2, w2s.Y - box_scale.Y / 2)
-                                cache.box_square.Size = box_scale
-                                cache.box_square.Filled = false
+                            local box_position = vec2(w2s.X - box_scale.X / 2, w2s.Y - box_scale.Y / 2)
+                            local box_size = box_scale
 
-                                -- Outline (slightly thicker than the main box)
+                            -- Main Box
+                            cache.box_square.Visible = true
+                            cache.box_square.Color = box_color
+                            cache.box_square.Thickness = 1
+                            cache.box_square.Position = box_position
+                            cache.box_square.Size = box_size
+                            cache.box_square.Filled = false
+
+                             -- Box Outline
                                 cache.box_outline.Visible = true
-                                cache.box_outline.Color = Color3.new(0, 0, 0)
-                                cache.box_outline.Thickness = features.box.border_size_pixel + 0.5
-                                cache.box_outline.Position = vec2(w2s.X - box_scale.X / 2 - 1, w2s.Y - box_scale.Y / 2 - 1)
-                                cache.box_outline.Size = vec2(box_scale.X + 2, box_scale.Y + 2)
+                                cache.box_outline.Color = Color3.fromRGB(0, 0, 0)
+                                cache.box_outline.Thickness = 1
+                                cache.box_outline.Position = vec2(box_position.X - 1, box_position.Y - 1)
+                                cache.box_outline.Size = vec2(box_size.X + 2, box_size.Y + 2)
                                 cache.box_outline.Filled = false
-
-                                -- Inline (slightly thinner than the main box)
-                                cache.box_inline.Visible = true
-                                cache.box_inline.Color = box_color
-                                cache.box_inline.Thickness = features.box.border_size_pixel
-                                cache.box_inline.Position = vec2(w2s.X - box_scale.X / 2 + 1, w2s.Y - box_scale.Y / 2 + 1)
-                                cache.box_inline.Size = vec2(box_scale.X - 2, box_scale.Y - 2)
-                                cache.box_inline.Filled = false
                             else
                                 cache.box_square.Visible = false
                                 cache.box_outline.Visible = false
-                                cache.box_inline.Visible = false
                             end
 
                             -- Tracer ESP
