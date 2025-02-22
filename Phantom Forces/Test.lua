@@ -8,10 +8,22 @@ local easing_strength = 0.1
 local is_visibility_check_enabled = false
 
 --// variables
+local fov_circle = Drawing.new("Circle")
+fov_circle.Visible = false
+fov_circle.Color = Color3.fromRGB(255, 255, 255)
+fov_circle.Thickness = 1
+fov_circle.Filled = false
+fov_circle.Transparency = 1
+fov_circle.Radius = 100 -- Default radius
+fov_circle.Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+
+
 local vec2 = Vector2.new
 local storage = { esp_cache = {} }
 local is_right_click_held = false
 local target_part = nil
+local is_fov_enabled = false
+local is_auto_target_switch_enabled = true
 local features = {
     box = {
         color = Color3.fromRGB(255, 255, 255),
@@ -120,6 +132,11 @@ local function get_closest_player()
     local screen_center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
 
     for _, player in ipairs(get_players()) do
+        -- Check if the player is in the Ignore.DeadBody folder
+        if player:IsDescendantOf(workspace.Ignore.DeadBody) then
+            continue
+        end
+
         local is_ally_player, _ = is_ally(player)
 
         if features.chams.team_check and is_ally_player then
@@ -132,20 +149,40 @@ local function get_closest_player()
             local part_position, on_screen = camera:WorldToViewportPoint(head.Position)
 
             if on_screen then
-                local distance_to_camera = (head.Position - camera.CFrame.Position).Magnitude
-
-                -- Prioritize heads within 20 studs
-                if distance_to_camera <= 20 then
-                    closest_part = head
-                    break
-                end
-
                 local screen_position = Vector2.new(part_position.X, part_position.Y)
                 local distance_to_center = (screen_position - screen_center).Magnitude
 
-                if distance_to_center < shortest_distance then
-                    closest_part = head
-                    shortest_distance = distance_to_center
+                -- Check if the FOV circle is enabled using the global variable
+                if is_fov_enabled then
+                    -- Only consider players within the FOV circle
+                    if distance_to_center <= fov_circle.Radius then
+                        local distance_to_camera = (head.Position - camera.CFrame.Position).Magnitude
+
+                        -- Prioritize heads within 20 studs
+                        if distance_to_camera <= 20 then
+                            closest_part = head
+                            break
+                        end
+
+                        if distance_to_center < shortest_distance then
+                            closest_part = head
+                            shortest_distance = distance_to_center
+                        end
+                    end
+                else
+                    -- If FOV circle is disabled, consider the entire screen
+                    local distance_to_camera = (head.Position - camera.CFrame.Position).Magnitude
+
+                    -- Prioritize heads within 20 studs
+                    if distance_to_camera <= 20 then
+                        closest_part = head
+                        break
+                    end
+
+                    if distance_to_center < shortest_distance then
+                        closest_part = head
+                        shortest_distance = distance_to_center
+                    end
                 end
             end
         end
@@ -155,7 +192,25 @@ local function get_closest_player()
 end
 
 local function aim_at()
-    if target_part then
+    if is_right_click_held then
+        -- Check if the current target is invalid or no longer exists
+        if not target_part or not target_part:IsDescendantOf(workspace.Players) then
+            if is_auto_target_switch_enabled then
+                -- Find the next closest player
+                target_part = get_closest_player()
+                if not target_part then
+                    -- No valid target found, stop aiming
+                    is_right_click_held = false
+                    return
+                end
+            else
+                -- If auto target switching is disabled, stop aiming
+                is_right_click_held = false
+                return
+            end
+        end
+
+        -- Proceed with aiming at the current or new target
         local part_position, on_screen = camera:WorldToViewportPoint(target_part.Position)
 
         if on_screen then
@@ -230,6 +285,13 @@ else
     text = 'Wall Check',
     state = false -- Default to enabled
     })
+    local auto_target_switch_toggle = aimbot_section:addToggle({
+        text = 'Auto Target Switch',
+        state = true -- Default to enabled
+    })
+    auto_target_switch_toggle:bindToEvent('onToggle', function(new_state)
+        is_auto_target_switch_enabled = new_state
+    end)
     aimbot_toggle:bindToEvent('onToggle', function(new_state)
         is_aimbot_enabled = new_state
         if is_aimbot_enabled then
@@ -315,7 +377,7 @@ local tracer_toggle = esp_section:addToggle({
 })
 
 local distance_toggle = esp_section:addToggle({
-    text = 'Distance Text',
+    text = 'Distance',
     state = false,
 })
 
@@ -327,6 +389,26 @@ local name_toggle = esp_section:addToggle({
 local visibility_toggle = esp_section:addToggle({
     text = 'Wall Check',
     state = false -- Default to enabled
+})
+
+local fov_section = menu:addSection({
+    text = 'FOV',
+    side = 'left',
+    showMinButton = false
+})
+
+local fov_toggle = fov_section:addToggle({
+    text = 'Show FOV Circle',
+    state = false
+})
+
+local fov_radius_slider = fov_section:addSlider({
+    text = 'FOV Radius',
+    min = 50,
+    max = 300,
+    default = 100,
+    float = false,
+    step = 1
 })
 local player_menu = window:addMenu({
     text = 'Player'
@@ -392,6 +474,15 @@ visibility_toggle:bindToEvent('onToggle', function(state)
     is_visibility_check_enabled = state
 end)
 
+fov_toggle:bindToEvent('onToggle', function(state)
+    is_fov_enabled = state
+    fov_circle.Visible = state
+end)
+
+fov_radius_slider:bindToEvent('onNewValue', function(value)
+    fov_circle.Radius = value
+end)
+
 local lastJumpTime = 0
 local jumpCooldown = 0.8681
 local useDelay = true
@@ -400,7 +491,6 @@ user_input_service.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
 
     if input.KeyCode == Enum.KeyCode.Space then
-        isHoldingSpace = true
         local currentTime = tick()
         if (currentTime - lastJumpTime) < jumpCooldown and jump_delay_bypass_toggle:getState() then
             local humanoid = get_character():FindFirstChildOfClass("Humanoid")
@@ -412,16 +502,6 @@ user_input_service.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
-
-local humanoid = get_character():FindFirstChildOfClass("Humanoid")
-humanoid.StateChanged:Connect(function(_, newState)
-    if newState == Enum.HumanoidStateType.Landed then
-        if useDelay then
-            task.wait(0.12)
-        end
-        humanoid.Jump = true
-    end
-end)
 
 esp_toggle:bindToEvent('onToggle', function(state)
     if state then
@@ -436,27 +516,43 @@ esp_toggle:bindToEvent('onToggle', function(state)
                 if player then
                     local torso = get_body_part(player, "Torso")
                     local head = get_head(player, "Head")
-                    if torso then
+                    if torso and head then
                         local w2s, on_screen = camera:WorldToViewportPoint(torso.Position)
                         if on_screen then
+                            local screen_position = Vector2.new(w2s.X, w2s.Y)
+                            local screen_center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+                            local distance_to_center = (screen_position - screen_center).Magnitude
+
+                            -- Only apply FOV radius constraint if the FOV circle is enabled
+                            if not fov_toggle:getState() or distance_to_center <= fov_circle.Radius then
+                                
+                            local billboardGui = head:FindFirstChildOfClass("BillboardGui")
+                            local textLabel = billboardGui and billboardGui:FindFirstChildOfClass("TextLabel")
+
+                            if not billboardGui or not textLabel then
+                                -- If the player doesn't have a valid BillboardGui or TextLabel, consider them dead
+                                uncache_object(player)
+                                continue
+                            end
+
                             local scale = 1000 / (camera.CFrame.Position - torso.Position).Magnitude * 80 / camera.FieldOfView
                             local box_scale = vec2(math.round(3 * scale), math.round(4 * scale))
 
                             -- Box ESP
                             local box_color = is_visible(head) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 0, 0)
                             if box_toggle:getState() then
-                            local box_position = vec2(w2s.X - box_scale.X / 2, w2s.Y - box_scale.Y / 2)
-                            local box_size = box_scale
+                                local box_position = vec2(w2s.X - box_scale.X / 2, w2s.Y - box_scale.Y / 2)
+                                local box_size = box_scale
 
-                            -- Main Box
-                            cache.box_square.Visible = true
-                            cache.box_square.Color = box_color
-                            cache.box_square.Thickness = 1
-                            cache.box_square.Position = box_position
-                            cache.box_square.Size = box_size
-                            cache.box_square.Filled = false
+                                -- Main Box
+                                cache.box_square.Visible = true
+                                cache.box_square.Color = box_color
+                                cache.box_square.Thickness = 1
+                                cache.box_square.Position = box_position
+                                cache.box_square.Size = box_size
+                                cache.box_square.Filled = false
 
-                             -- Box Outline
+                                -- Box Outline
                                 cache.box_outline.Visible = true
                                 cache.box_outline.Color = Color3.fromRGB(0, 0, 0)
                                 cache.box_outline.Thickness = 1
@@ -479,10 +575,10 @@ esp_toggle:bindToEvent('onToggle', function(state)
                                 cache.tracer_line.Visible = false
                             end
 
-                            -- Name ESP (buggy, will be fixed soon)
-                             if name_toggle:getState() then
+                            -- Name ESP
+                            if name_toggle:getState() then
                                 cache.name_label.Visible = true
-                                cache.name_label.Text = head:FindFirstChildOfClass("BillboardGui"):FindFirstChildOfClass("TextLabel").Text
+                                cache.name_label.Text = textLabel.Text -- Use the TextLabel's text
                                 cache.name_label.Size = features.distance_text.size
                                 cache.name_label.Color = features.distance_text.color
                                 cache.name_label.Center = true
@@ -494,6 +590,7 @@ esp_toggle:bindToEvent('onToggle', function(state)
                             else
                                 cache.name_label.Visible = false
                             end
+
                             -- Distance Text ESP
                             if distance_toggle:getState() then
                                 local distance = math.floor((camera.CFrame.Position - torso.Position).Magnitude)
@@ -520,6 +617,7 @@ esp_toggle:bindToEvent('onToggle', function(state)
                     uncache_object(player)
                 end
             end
+        end
         end)
     else
         if esp_loop then
