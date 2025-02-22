@@ -8,6 +8,7 @@ local easing_strength = 0.1
 local is_visibility_check_enabled = false
 
 --// variables
+
 local vec2 = Vector2.new
 local storage = { esp_cache = {} }
 local is_right_click_held = false
@@ -120,6 +121,11 @@ local function get_closest_player()
     local screen_center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
 
     for _, player in ipairs(get_players()) do
+        -- Check if the player is in the Ignore.DeadBody folder
+        if player:IsDescendantOf(workspace.Ignore.DeadBody) then
+            continue
+        end
+
         local is_ally_player, _ = is_ally(player)
 
         if features.chams.team_check and is_ally_player then
@@ -155,7 +161,19 @@ local function get_closest_player()
 end
 
 local function aim_at()
-    if target_part then
+    if is_right_click_held then
+        -- Check if the current target is invalid or no longer exists
+        if not target_part or not target_part:IsDescendantOf(workspace.Players) then
+            -- Find the next closest player
+            target_part = get_closest_player()
+            if not target_part then
+                -- No valid target found, stop aiming
+                is_right_click_held = false
+                return
+            end
+        end
+
+        -- Proceed with aiming at the current or new target
         local part_position, on_screen = camera:WorldToViewportPoint(target_part.Position)
 
         if on_screen then
@@ -315,7 +333,7 @@ local tracer_toggle = esp_section:addToggle({
 })
 
 local distance_toggle = esp_section:addToggle({
-    text = 'Distance Text',
+    text = 'Distance',
     state = false,
 })
 
@@ -355,6 +373,16 @@ local jump_height_slider = player_mods:addSlider({
     step = 1
 })
 
+local fun_mods = player_menu:addSection({
+    text = "Fun Mods",
+
+})
+
+local jump_delay_bypass_toggle = fun_mods:addToggle({
+    text = 'Jump Delay Bypass',
+    state = false
+})
+
 local t_speed = walk_speed_slider:getValue()
 
 local function get_character()
@@ -382,6 +410,26 @@ visibility_toggle:bindToEvent('onToggle', function(state)
     is_visibility_check_enabled = state
 end)
 
+local lastJumpTime = 0
+local jumpCooldown = 0.8681
+local useDelay = true
+
+user_input_service.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+
+    if input.KeyCode == Enum.KeyCode.Space then
+        local currentTime = tick()
+        if (currentTime - lastJumpTime) < jumpCooldown and jump_delay_bypass_toggle:getState() then
+            local humanoid = get_character():FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.Jump = true
+            end
+        end
+        lastJumpTime = currentTime
+    end
+end)
+
+
 esp_toggle:bindToEvent('onToggle', function(state)
     if state then
         esp_loop = run_service.RenderStepped:Connect(function()
@@ -395,27 +443,37 @@ esp_toggle:bindToEvent('onToggle', function(state)
                 if player then
                     local torso = get_body_part(player, "Torso")
                     local head = get_head(player, "Head")
-                    if torso then
+                    if torso and head then
                         local w2s, on_screen = camera:WorldToViewportPoint(torso.Position)
                         if on_screen then
+                            -- Check if the player has a valid BillboardGui with a TextLabel
+                            local billboardGui = head:FindFirstChildOfClass("BillboardGui")
+                            local textLabel = billboardGui and billboardGui:FindFirstChildOfClass("TextLabel")
+
+                            if not billboardGui or not textLabel then
+                                -- If the player doesn't have a valid BillboardGui or TextLabel, consider them dead
+                                uncache_object(player)
+                                continue
+                            end
+
                             local scale = 1000 / (camera.CFrame.Position - torso.Position).Magnitude * 80 / camera.FieldOfView
                             local box_scale = vec2(math.round(3 * scale), math.round(4 * scale))
 
                             -- Box ESP
                             local box_color = is_visible(head) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 0, 0)
                             if box_toggle:getState() then
-                            local box_position = vec2(w2s.X - box_scale.X / 2, w2s.Y - box_scale.Y / 2)
-                            local box_size = box_scale
+                                local box_position = vec2(w2s.X - box_scale.X / 2, w2s.Y - box_scale.Y / 2)
+                                local box_size = box_scale
 
-                            -- Main Box
-                            cache.box_square.Visible = true
-                            cache.box_square.Color = box_color
-                            cache.box_square.Thickness = 1
-                            cache.box_square.Position = box_position
-                            cache.box_square.Size = box_size
-                            cache.box_square.Filled = false
+                                -- Main Box
+                                cache.box_square.Visible = true
+                                cache.box_square.Color = box_color
+                                cache.box_square.Thickness = 1
+                                cache.box_square.Position = box_position
+                                cache.box_square.Size = box_size
+                                cache.box_square.Filled = false
 
-                             -- Box Outline
+                                -- Box Outline
                                 cache.box_outline.Visible = true
                                 cache.box_outline.Color = Color3.fromRGB(0, 0, 0)
                                 cache.box_outline.Thickness = 1
@@ -438,10 +496,10 @@ esp_toggle:bindToEvent('onToggle', function(state)
                                 cache.tracer_line.Visible = false
                             end
 
-                            -- Name ESP (buggy, will be fixed soon)
-                             if name_toggle:getState() then
+                            -- Name ESP
+                            if name_toggle:getState() then
                                 cache.name_label.Visible = true
-                                cache.name_label.Text = head:FindFirstChildOfClass("BillboardGui"):FindFirstChildOfClass("TextLabel").Text
+                                cache.name_label.Text = textLabel.Text -- Use the TextLabel's text
                                 cache.name_label.Size = features.distance_text.size
                                 cache.name_label.Color = features.distance_text.color
                                 cache.name_label.Center = true
@@ -453,6 +511,7 @@ esp_toggle:bindToEvent('onToggle', function(state)
                             else
                                 cache.name_label.Visible = false
                             end
+
                             -- Distance Text ESP
                             if distance_toggle:getState() then
                                 local distance = math.floor((camera.CFrame.Position - torso.Position).Magnitude)
