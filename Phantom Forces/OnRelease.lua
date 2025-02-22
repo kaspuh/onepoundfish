@@ -1,21 +1,21 @@
 --// services 
-local runservice = game:GetService("RunService")
+local run_service = game:GetService("RunService")
 local teams = game:GetService("Teams")
 local players = game:GetService("Players")
 local camera = workspace.CurrentCamera
-local userinputservice = game:GetService("UserInputService")
-local easingstrength = 0.1
-local isVisibilityCheckEnabled = true
+local user_input_service = game:GetService("UserInputService")
+local easing_strength = 0.1
+local is_visibility_check_enabled = true
 
 --// variables
 local vec2 = Vector2.new
 local storage = { esp_cache = {} }
-local isrightclickheld = false
-local targetpart = nil -- The part to aim at
+local is_right_click_held = false
+local target_part = nil -- The part to aim at
 local features = {
     box = {
         color = Color3.fromRGB(255, 255, 255),
-        borderSizePixel = 1,
+        border_size_pixel = 1,
     },
     tracer = {
         color = Color3.fromRGB(255, 255, 255),
@@ -25,11 +25,11 @@ local features = {
         size = 14,
         color = Color3.fromRGB(255, 255, 255),
     },
-    chams = {teamcheck = true}
+    chams = {team_check = true}
 }
 
 --// functions
-function getplayers()
+function get_players()
     local entity_list = {}
     for _, team in ipairs(workspace.Players:GetChildren()) do
         for _, player in ipairs(team:GetChildren()) do
@@ -41,21 +41,21 @@ function getplayers()
     return entity_list
 end
 
-function isenemy(player)
-    local localPlayerTeam = players.LocalPlayer.Team
+function is_enemy(player)
+    local local_player_team = players.LocalPlayer.Team
     local helmet = player:FindFirstChildWhichIsA("Folder") and player:FindFirstChildWhichIsA("Folder"):FindFirstChildOfClass("MeshPart")
     if not helmet then return false end
 
-    local playerColor = helmet.BrickColor.Name
-    if playerColor == "Black" and localPlayerTeam.Name == "Phantoms" then
+    local player_color = helmet.BrickColor.Name
+    if player_color == "Black" and local_player_team.Name == "Phantoms" then
         return false
-    elseif playerColor ~= "Black" and localPlayerTeam.Name == "Ghosts" then
+    elseif player_color ~= "Black" and local_player_team.Name == "Ghosts" then
         return false
     end
     return true
 end
 
-function cacheobject(object)
+function cache_object(object)
     if not storage.esp_cache[object] then
         storage.esp_cache[object] = {
             box_square = Drawing.new("Square"),
@@ -66,7 +66,7 @@ function cacheobject(object)
     end
 end
 
-function uncacheobject(object)
+function uncache_object(object)
     if storage.esp_cache[object] then
         for _, cached_instance in pairs(storage.esp_cache[object]) do
             cached_instance:Remove()
@@ -75,31 +75,31 @@ function uncacheobject(object)
     end
 end
 
-function getbodypart(player, bodypart_name)
-    for _, bodypart in player:GetChildren() do
-        if bodypart:IsA("BasePart") then
-            local mesh = bodypart:FindFirstChildOfClass("SpecialMesh")
+function get_body_part(player, body_part_name)
+    for _, body_part in player:GetChildren() do
+        if body_part:IsA("BasePart") then
+            local mesh = body_part:FindFirstChildOfClass("SpecialMesh")
             if mesh and mesh.MeshId == "rbxassetid://4049240078" then
-                return bodypart
+                return body_part
             end
         end
     end
     return nil
 end
 
-function gethead(player, bodypart_name)
-    for _, bodypart in player:GetChildren() do
-        if bodypart:IsA("BasePart") then
-            local mesh = bodypart:FindFirstChildOfClass("SpecialMesh")
+function get_head(player, body_part_name)
+    for _, body_part in player:GetChildren() do
+        if body_part:IsA("BasePart") then
+            local mesh = body_part:FindFirstChildOfClass("SpecialMesh")
             if mesh and mesh.MeshId == "rbxassetid://6179256256" then
-                return bodypart
+                return body_part
             end
         end
     end
     return nil
 end
 
-function isally(player)
+function is_ally(player)
     if not player then return end
 
     local helmet = player:FindFirstChildWhichIsA("Folder"):FindFirstChildOfClass("MeshPart")
@@ -112,21 +112,19 @@ function isally(player)
     return teams.Ghosts == players.LocalPlayer.Team, teams.Ghosts
 end
 
-local function getclosestplayer()
-    local closestPart = nil
-    local shortestDistance = math.huge
-    local screenCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+local function get_closest_player()
+    local closest_part = nil
+    local shortest_distance = math.huge
+    local screen_center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
 
-    for _, player in ipairs(getplayers()) do
-        local isallyplayer, _ = isally(player)
+    for _, player in ipairs(get_players()) do
+        local is_ally_player, _ = is_ally(player)
 
-
-        if features.chams.teamcheck and isallyplayer then
+        if features.chams.team_check and is_ally_player then
             continue
         end
 
         local has_decals = false
-
 
         for _, child in ipairs(player:GetChildren()) do
             if child:IsA("Part") then
@@ -135,15 +133,15 @@ local function getclosestplayer()
                         has_decals = true
 
                         local ray = Ray.new(camera.CFrame.Position, (child.Position - camera.CFrame.Position).unit * 1000)
-                        local partPosition, onScreen = camera:WorldToViewportPoint(child.Position)
+                        local part_position, on_screen = camera:WorldToViewportPoint(child.Position)
 
-                        if onScreen then
-                            local screenPosition = Vector2.new(partPosition.X, partPosition.Y)
-                            local distance = (screenPosition - screenCenter).Magnitude
+                        if on_screen then
+                            local screen_position = Vector2.new(part_position.X, part_position.Y)
+                            local distance = (screen_position - screen_center).Magnitude
 
-                            if distance < shortestDistance then
-                                closestPart = child
-                                shortestDistance = distance
+                            if distance < shortest_distance then
+                                closest_part = child
+                                shortest_distance = distance
                             end
                         end
                     end
@@ -156,48 +154,45 @@ local function getclosestplayer()
         end
     end
 
-    return closestPart
+    return closest_part
 end
 
+local function aim_at()
+    if target_part then
+        local part_position, on_screen = camera:WorldToViewportPoint(target_part.Position)
 
-local function aimat()
-    if targetpart then
-        local partPosition, onScreen = camera:WorldToViewportPoint(targetpart.Position)
+        if on_screen then
+            local mouse_location = user_input_service:GetMouseLocation()
+            local target_mouse_position = Vector2.new(part_position.X, part_position.Y)
 
-        if onScreen then
-            local mouseLocation = userinputservice:GetMouseLocation()
-            local targetMousePosition = Vector2.new(partPosition.X, partPosition.Y)
-
-            local delta = targetMousePosition - mouseLocation
+            local delta = target_mouse_position - mouse_location
             local distance = delta.Magnitude
 
             if distance > 1 then
-                local moveVector = delta * easingstrength -- Use adjustable easing
-                getfenv().mousemoverel(moveVector.X, moveVector.Y)
+                local move_vector = delta * easing_strength
+                mousemoverel(move_vector.X, move_vector.Y)
             end
         end
     end
 end
 
-local function isVisible(targetPart)
-    if isVisibilityCheckEnabled then  -- Check if the visibility toggle is enabled
-        local ray = Ray.new(camera.CFrame.Position, (targetPart.Position - camera.CFrame.Position).unit * 1000)
-        local hitPart, hitPosition = workspace:FindPartOnRay(ray, players.LocalPlayer.Character, false, true) -- dont know how the fuck this works but we keep it
+local function is_visible(target_part)
+    if is_visibility_check_enabled then
+        local ray = Ray.new(camera.CFrame.Position, (target_part.Position - camera.CFrame.Position).unit * 1000)
+        local hit_part, hit_position = workspace:FindPartOnRay(ray, players.LocalPlayer.Character, false, true) -- dont know how the fuck this works but we keep it
         
-        -- If the hitPart is not the target part, then there's an obstruction (wall)
-        return hitPart == targetPart
+        return hit_part == target_part
     else
-        return true -- Always return true if the visibility check is disabled
+        return true
     end
 end
 
-
-local uiLoader = loadstring(game:HttpGet('https://raw.githubusercontent.com/topitbopit/dollarware/main/library.lua'))
-getgenv().jumpheightvalue = 30
+local ui_loader = loadstring(game:HttpGet('https://raw.githubusercontent.com/topitbopit/dollarware/main/library.lua'))
+getgenv().jump_height_value = 30
 
 local env = identifyexecutor()
 
-local ui = uiLoader({
+local ui = ui_loader({
     rounding = false,
     theme = 'lime',
     smoothDragging = false
@@ -215,11 +210,9 @@ local menu = window:addMenu({
     text = 'Main'
 })
 
-
-
-local aimbotsection
+local aimbot_section
 if env == "Xeno" then
-    aimbotsection = menu:addSection({
+    aimbot_section = menu:addSection({
         text = 'Aimbot',
         side = 'left',
         showMinButton = false
@@ -227,73 +220,61 @@ if env == "Xeno" then
         text = 'Xeno Doesn\'t have Aimbot Support :(',
     })
 else
-    aimbotsection = menu:addSection({
+    aimbot_section = menu:addSection({
         text = 'Aimbot',
         side = 'left',
         showMinButton = false
     }) 
-    local aimbottoggle = aimbotsection:addToggle({
+    local aimbot_toggle = aimbot_section:addToggle({
         text = 'Enabled',
         state = false
     })
-    aimbottoggle:bindToEvent('onToggle', function(newState)
-    isAimbotEnabled = newState
-    if isAimbotEnabled then
-        print("Aimbot Enabled")
+    aimbot_toggle:bindToEvent('onToggle', function(new_state)
+        is_aimbot_enabled = new_state
+        if is_aimbot_enabled then
+            print("Aimbot Enabled")
 
- 
-        if inputBeganConnection then
-            inputBeganConnection:Disconnect()
-        end
-        if inputEndedConnection then
-            inputEndedConnection:Disconnect()
-        end
-        if renderSteppedConnection then
-            renderSteppedConnection:Disconnect()
-        end
+            -- Connect input events
+            input_began_connection = user_input_service.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                    is_right_click_held = true
+                    target_part = get_closest_player()
+                end
+            end)
 
+            input_ended_connection = user_input_service.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                    is_right_click_held = false
+                    target_part = nil
+                end
+            end)
 
-        inputBeganConnection = userinputservice.InputBegan:Connect(function(input)
-            if isAimbotEnabled and input.UserInputType == Enum.UserInputType.MouseButton2 then
-                isrightclickheld = true
-                targetpart = getclosestplayer()
+            -- Connect render stepped event
+            render_stepped_connection = run_service.RenderStepped:Connect(function()
+                if is_right_click_held and target_part then
+                    aim_at()
+                end
+            end)
+        else
+            print("Aimbot Disabled")
+            is_right_click_held = false
+            target_part = nil
+
+            -- Disconnect events
+            if input_began_connection then
+                input_began_connection:Disconnect()
             end
-        end)
-
-   
-        inputEndedConnection = userinputservice.InputEnded:Connect(function(input)
-            if isAimbotEnabled and input.UserInputType == Enum.UserInputType.MouseButton2 then
-                isrightclickheld = false
-                targetpart = nil
+            if input_ended_connection then
+                input_ended_connection:Disconnect()
             end
-        end)
-
-
-        renderSteppedConnection = runservice.RenderStepped:Connect(function()
-            if isAimbotEnabled and isrightclickheld and targetpart then
-                aimat()
+            if render_stepped_connection then
+                render_stepped_connection:Disconnect()
             end
-        end)
-    else
-        print("Aimbot Disabled")
-        isrightclickheld = false
-        targetpart = nil
-
-        if inputBeganConnection then
-            inputBeganConnection:Disconnect()
         end
-        if inputEndedConnection then
-            inputEndedConnection:Disconnect()
-        end
-        if renderSteppedConnection then
-            renderSteppedConnection:Disconnect()
-        end
-    end
-end)
+    end)
 end
 
-
-local easingslider = aimbotsection:addSlider({
+local easing_slider = aimbot_section:addSlider({
     text = 'Strength',
     min = 0.1,
     max = 1.5,
@@ -302,52 +283,53 @@ local easingslider = aimbotsection:addSlider({
     step = 0.1
 })
 
-local aimbotwarningtet = aimbotsection:addLabel({
+local aimbot_warning_text = aimbot_section:addLabel({
        text = "* Values above 1 will be shaky!",
 })
 
-local espsection = menu:addSection({
+local esp_section = menu:addSection({
     text = "ESP",
     side = "right",
     showMinButton = false
-}) local esptoggle = espsection:addToggle({
+}) 
+local esp_toggle = esp_section:addToggle({
         text = 'Enabled',
         state = false,
 })
-local boxToggle = espsection:addToggle({
+local box_toggle = esp_section:addToggle({
     text = 'Box',
     state = false,
 })
 
-local tracerToggle = espsection:addToggle({
+local tracer_toggle = esp_section:addToggle({
     text = 'Tracer',
     state = false,
 })
 
-local distanceToggle = espsection:addToggle({
+local distance_toggle = esp_section:addToggle({
     text = 'Distance Text',
     state = false,
 })
 
-local nameToggle = espsection:addToggle({
+local name_toggle = esp_section:addToggle({
     text = 'Name',
     state = false,
 })
 
-local visibilityToggle = espsection:addToggle({
+local visibility_toggle = esp_section:addToggle({
     text = 'Wall Check',
     state = false -- Default to enabled
 })
-local playerMenu = window:addMenu({
+local player_menu = window:addMenu({
     text = 'Player'
 })
 
-local playermods = playerMenu:addSection({
+local player_mods = player_menu:addSection({
     text = 'LocalPlayer Mods',
     side = 'left'
 })
 
-local walkspeedslider = playermods:addSlider({
+local walk_speed_slider = player_mods:addSlider({
     text = 'WalkSpeed',
     min = 0,
     max = 0.17,
@@ -356,7 +338,7 @@ local walkspeedslider = playermods:addSlider({
     step = 0.01
 })
 
-local jumpheightslider = playermods:addSlider({
+local jump_height_slider = player_mods:addSlider({
     text = 'JumpPower',
     min = 0,
     max = 100,
@@ -365,12 +347,9 @@ local jumpheightslider = playermods:addSlider({
     step = 1
 })
 
+local t_speed = walk_speed_slider:getValue()
 
-
-tspeed = walkspeedslider:getValue()
-
-
-local function getchr()
+local function get_character()
     local character
     repeat
         character = workspace:FindFirstChild("Ignore") and workspace:FindFirstChild("Ignore"):FindFirstChildWhichIsA("Model")
@@ -379,47 +358,47 @@ local function getchr()
     return character
 end
 
-walkspeedslider:bindToEvent('onNewValue', function(walkspeedfunc)
-    tspeed = walkspeedfunc
-    print("Slider value is: " .. string.format("%.3f", walkspeedfunc))
+walk_speed_slider:bindToEvent('onNewValue', function(walk_speed_func)
+    t_speed = walk_speed_func
+    print("Slider value is: " .. string.format("%.3f", walk_speed_func))
 end)
-jumpheightslider:bindToEvent('onNewValue', function(jumpheightfunc)
-    getgenv().jumpheightvalue = jumpheightfunc
-    print("JumpPower slider value is: " .. string.format("%.0f", jumpheightfunc))
+jump_height_slider:bindToEvent('onNewValue', function(jump_height_func)
+    getgenv().jump_height_value = jump_height_func
+    print("JumpPower slider value is: " .. string.format("%.0f", jump_height_func))
 end)
-easingslider:bindToEvent('onNewValue', function(value)
-    easingstrength = value
+easing_slider:bindToEvent('onNewValue', function(value)
+    easing_strength = value
     print("Easing Strength set to:", value)
 end)
-visibilityToggle:bindToEvent('onToggle', function(state)
-    isVisibilityCheckEnabled = state
+visibility_toggle:bindToEvent('onToggle', function(state)
+    is_visibility_check_enabled = state
 end)
 
-esptoggle:bindToEvent('onToggle', function(state)
+esp_toggle:bindToEvent('onToggle', function(state)
     if state then
-        esp_loop = runservice.RenderStepped:Connect(function()
-            for _, player in ipairs(getplayers()) do
-                if isenemy(player) then
-                    cacheobject(player)
+        esp_loop = run_service.RenderStepped:Connect(function()
+            for _, player in ipairs(get_players()) do
+                if is_enemy(player) then
+                    cache_object(player)
                 end
             end
 
             for player, cache in pairs(storage.esp_cache) do
                 if player then
-                    local torso = getbodypart(player, "Torso")
-                    local head = gethead(player, "Head")
+                    local torso = get_body_part(player, "Torso")
+                    local head = get_head(player, "Head")
                     if torso then
-                        local w2s, onscreen = camera:WorldToViewportPoint(torso.Position)
-                        if onscreen then
+                        local w2s, on_screen = camera:WorldToViewportPoint(torso.Position)
+                        if on_screen then
                             local scale = 1000 / (camera.CFrame.Position - torso.Position).Magnitude * 80 / camera.FieldOfView
                             local box_scale = vec2(math.round(3 * scale), math.round(4 * scale))
 
                             -- Box ESP
-                             local boxColor = isVisible(head) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 0, 0)
-                            if boxToggle:getState() then
+                             local box_color = is_visible(head) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 0, 0)
+                            if box_toggle:getState() then
                                 cache.box_square.Visible = true
-                                cache.box_square.Color = boxColor
-                                cache.box_square.Thickness = features.box.borderSizePixel
+                                cache.box_square.Color = box_color
+                                cache.box_square.Thickness = features.box.border_size_pixel
                                 cache.box_square.Position = vec2(w2s.X - box_scale.X / 2, w2s.Y - box_scale.Y / 2)
                                 cache.box_square.Size = box_scale
                                 cache.box_square.Filled = false
@@ -428,7 +407,7 @@ esptoggle:bindToEvent('onToggle', function(state)
                             end
 
                             -- Tracer ESP
-                            if tracerToggle:getState() then
+                            if tracer_toggle:getState() then
                                 cache.tracer_line.Visible = true
                                 cache.tracer_line.Color = features.tracer.color
                                 cache.tracer_line.Thickness = features.tracer.thickness
@@ -439,7 +418,7 @@ esptoggle:bindToEvent('onToggle', function(state)
                             end
 
                             -- Name ESP (buggy, will be fixed soon)
-                             if nameToggle:getState() then
+                             if name_toggle:getState() then
                                 cache.name_label.Visible = true
                                 cache.name_label.Text = head:FindFirstChildOfClass("BillboardGui"):FindFirstChildOfClass("TextLabel").Text
                                 cache.name_label.Size = features.distance_text.size
@@ -454,7 +433,7 @@ esptoggle:bindToEvent('onToggle', function(state)
                                 cache.name_label.Visible = false
                             end
                             -- Distance Text ESP
-                            if distanceToggle:getState() then
+                            if distance_toggle:getState() then
                                 local distance = math.floor((camera.CFrame.Position - torso.Position).Magnitude)
                                 cache.distance_label.Visible = true
                                 cache.distance_label.Text = tostring(distance) .. " studs"
@@ -470,13 +449,13 @@ esptoggle:bindToEvent('onToggle', function(state)
                                 cache.distance_label.Visible = false
                             end
                         else
-                            uncacheobject(player)
+                            uncache_object(player)
                         end
                     else
-                        uncacheobject(player)
+                        uncache_object(player)
                     end
                 else
-                    uncacheobject(player)
+                    uncache_object(player)
                 end
             end
         end)
@@ -484,34 +463,32 @@ esptoggle:bindToEvent('onToggle', function(state)
         if esp_loop then
             esp_loop:Disconnect()
             for player in pairs(storage.esp_cache) do
-                uncacheobject(player)
+                uncache_object(player)
             end
         end
     end
 end)
 
-
-
-function isNumber(str)
+function is_number(str)
     return tonumber(str) ~= nil or str == 'inf'
 end
 
 local hb = game:GetService("RunService").Heartbeat
-local tpwalking = true
+local tp_walking = true
 
-while tpwalking do
-    local chr = getchr()
+while tp_walking do
+    local chr = get_character()
     local hum = chr and chr:FindFirstChildWhichIsA("Humanoid")
 
-    hum.JumpPower = getgenv().jumpheightvalue
+    hum.JumpPower = getgenv().jump_height_value
 
     hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-        hum.JumpPower = getgenv().jumpheightvalue
+        hum.JumpPower = getgenv().jump_height_value
     end)
-    while chr and hum and hum.Parent and tpwalking do
+    while chr and hum and hum.Parent and tp_walking do
         if hum.MoveDirection.Magnitude > 0 then
-            if tspeed and isNumber(tspeed) then
-                chr:TranslateBy(hum.MoveDirection * tonumber(tspeed))
+            if t_speed and is_number(t_speed) then
+                chr:TranslateBy(hum.MoveDirection * tonumber(t_speed))
             else
                 chr:TranslateBy(hum.MoveDirection)
             end
