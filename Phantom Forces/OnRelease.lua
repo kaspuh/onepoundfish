@@ -224,6 +224,7 @@ else
         text = 'Enabled',
         state = false
     })
+
     aimbot_toggle:bindToEvent('onToggle', function(new_state)
         is_aimbot_enabled = new_state
         if is_aimbot_enabled then
@@ -246,10 +247,16 @@ else
 
             -- Connect render stepped event
             render_stepped_connection = run_service.RenderStepped:Connect(function()
-                if is_right_click_held and target_part then
+            if is_right_click_held and target_part then
+                if wall_check_toggle:getState() then
+                    if is_visible(target_part) then
+                        aim_at()
+                    end
+                else
                     aim_at()
                 end
-            end)
+            end
+        end)
         else
             print("Aimbot Disabled")
             is_right_click_held = false
@@ -268,6 +275,11 @@ else
         end
     end)
 end
+
+local wall_check_toggle = aimbot_section:addToggle({
+    text = 'Wall Check',
+    state = false -- Default to enabled
+})
 
 local easing_slider = aimbot_section:addSlider({
     text = 'Strength',
