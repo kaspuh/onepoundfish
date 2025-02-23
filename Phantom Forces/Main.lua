@@ -616,7 +616,17 @@ local function initialize_votekick_rejoiner()
 
     display_vote_kick:GetPropertyChangedSignal("Visible"):Connect(function()
         if display_vote_kick.Visible and votekick_rejoiner_toggle:getState() then
-            kick_and_rejoin()
+            local text_title = display_vote_kick.TextTitle.Text
+            local words = {}
+            for word in text_title:gmatch("%S+") do
+                table.insert(words, word)
+            end
+            -- Check if the second word is the local player's name
+            if words[2] == local_player.Name then
+                kick_and_rejoin()
+            else
+                print("Votekick detected, but it's not targeting you. Ignoring...")
+            end
         end
     end)
 end
