@@ -541,7 +541,17 @@ local misc_mods = window:addMenu({
 })
 
 local optimizations = misc_mods:addSection({
-    text = "Misc Mods"
+    text = "Misc Mods",
+    side = "left"
+})
+
+local safety_section = misc_mods:addSection({
+    text = "Safety",
+    side = "right"
+})
+local votekick_rejoiner_toggle = safety_section:addToggle({
+    text = "Rejoin on Votekick",
+    state = false
 })
 
 local texture_toggle = optimizations:addToggle({
@@ -588,6 +598,29 @@ end)
 local lastJumpTime = 0
 local jumpCooldown = 0.8681
 local useDelay = true
+local local_player = players.LocalPlayer
+
+local function kick_and_rejoin()
+    local teleport_service = game:GetService("TeleportService")
+    local place_id = game.PlaceId
+    
+    local_player:Kick("You have been vote-kicked. Rejoining a different server...")
+    teleport_service:Teleport(place_id)
+end
+
+local function initialize_votekick_rejoiner()
+    local players = game:GetService("Players")
+    local local_player = players.LocalPlayer
+    local chat_screen_gui = local_player.PlayerGui:WaitForChild("ChatScreenGui")
+    local display_vote_kick = chat_screen_gui.Main:WaitForChild("DisplayVoteKick")
+
+    display_vote_kick:GetPropertyChangedSignal("Visible"):Connect(function()
+        if display_vote_kick.Visible and votekick_rejoiner_toggle:getState() then
+            kick_and_rejoin()
+        end
+    end)
+end
+
 
 user_input_service.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
@@ -751,6 +784,15 @@ esp_toggle:bindToEvent('onToggle', function(state)
                 uncache_object(player)
             end
         end
+    end
+end)
+
+votekick_rejoiner_toggle:bindToEvent('onToggle', function(state)
+    if state then
+        initialize_votekick_rejoiner()
+        print("Votekick Rejoiner Enabled")
+    else
+        print("Votekick Rejoiner Disabled")
     end
 end)
 
