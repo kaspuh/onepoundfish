@@ -313,7 +313,7 @@ local ui = ui_loader({
 ui.autoDisableToggles = true
 
 local window = ui.newWindow({
-    text = 'Crobster.lol | DEV TEST V0.01 | discord.gg/getxeno',
+    text = 'Crobster.lol | DEV TEST V0.8 | discord.gg/getxeno',
     resize = false,
     size = Vector2.new(550, 376),
 })
@@ -454,6 +454,30 @@ local name_toggle = esp_section:addToggle({
 local visibility_toggle = esp_section:addToggle({
     text = 'Wall Check',
     state = false -- Default to enabled
+})
+
+local box_color_picker = esp_section:addColorPicker({
+    text = 'Box Color',
+    color = Color3.fromRGB(255, 255, 255), -- Default color
+})
+
+local tracer_color_picker = esp_section:addColorPicker({
+    text = 'Tracer Color',
+    color = Color3.fromRGB(255, 255, 255), -- Default color
+})
+
+local distance_color_picker = esp_section:addColorPicker({
+    text = 'Distance Color',
+    color = Color3.fromRGB(255, 255, 255), -- Default color
+})
+local head_dot_color_picker = esp_section:addColorPicker({
+    text = 'Head Dot Color',
+    color = Color3.fromRGB(255, 255, 255), -- Default color
+})
+
+local name_color_picker = esp_section:addColorPicker({
+    text = 'Name Color',
+    color = Color3.fromRGB(255, 255, 255), -- Default color
 })
 
 local fov_section = menu:addSection({
@@ -617,7 +641,7 @@ esp_toggle:bindToEvent('onToggle', function(state)
                             local box_scale = vec2(math.round(3 * scale), math.round(4 * scale))
 
                             -- Box ESP
-                            local box_color = is_visible(head) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 0, 0)
+                            local box_color = is_visible(head) and box_color_picker:getColor() or Color3.fromRGB(255, 0, 0)
                             if box_toggle:getState() then
                                 local box_position = vec2(w2s.X - box_scale.X / 2, w2s.Y - box_scale.Y / 2)
                                 local box_size = box_scale
@@ -645,7 +669,7 @@ esp_toggle:bindToEvent('onToggle', function(state)
                             -- Tracer ESP
                             if tracer_toggle:getState() then
                                 cache.tracer_line.Visible = true
-                                cache.tracer_line.Color = features.tracer.color
+                                cache.tracer_line.Color = tracer_color_picker:getColor()
                                 cache.tracer_line.Thickness = features.tracer.thickness
                                 cache.tracer_line.From = vec2(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
                                 cache.tracer_line.To = vec2(w2s.X, w2s.Y)
@@ -658,7 +682,7 @@ esp_toggle:bindToEvent('onToggle', function(state)
                                 cache.name_label.Visible = true
                                 cache.name_label.Text = textLabel.Text -- Use the TextLabel's text
                                 cache.name_label.Size = features.distance_text.size
-                                cache.name_label.Color = features.distance_text.color
+                                cache.name_label.Color = name_color_picker:getColor()
                                 cache.name_label.Center = true
                                 cache.name_label.Outline = true
                                 cache.name_label.Position = vec2(
@@ -675,7 +699,7 @@ esp_toggle:bindToEvent('onToggle', function(state)
                                 cache.distance_label.Visible = true
                                 cache.distance_label.Text = tostring(distance) .. " studs"
                                 cache.distance_label.Size = features.distance_text.size
-                                cache.distance_label.Color = features.distance_text.color
+                                cache.distance_label.Color = distance_color_picker:getColor()
                                 cache.distance_label.Center = true
                                 cache.distance_label.Outline = true
                                 cache.distance_label.Position = vec2(
@@ -694,7 +718,7 @@ esp_toggle:bindToEvent('onToggle', function(state)
                                 local head_w2s, head_on_screen = camera:WorldToViewportPoint(head.Position)
                                 if head_on_screen then
                                     cache.head_dot.Visible = true
-                                    cache.head_dot.Color = Color3.fromRGB(255, 255, 255)
+                                    cache.head_dot.Color = head_dot_color_picker:getColor()
                                     cache.head_dot.Thickness = 1
                                     cache.head_dot.Filled = true
                                     cache.head_dot.Transparency = 1
@@ -728,6 +752,28 @@ esp_toggle:bindToEvent('onToggle', function(state)
             end
         end
     end
+end)
+
+box_color_picker:bindToEvent('onColorChanged', function(new_color)
+    features.box.color = new_color
+end)
+
+tracer_color_picker:bindToEvent('onColorChanged', function(new_color)
+    features.tracer.color = new_color
+end)
+
+distance_color_picker:bindToEvent('onColorChanged', function(new_color)
+    features.distance_text.color = new_color
+end)
+
+-- Bind Name Color Picker
+name_color_picker:bindToEvent('onColorChanged', function(new_color)
+    features.name_color = new_color -- Optional: Store the color in a table if needed
+end)
+
+-- Bind Head Dot Color Picker
+head_dot_color_picker:bindToEvent('onColorChanged', function(new_color)
+    features.head_dot_color = new_color -- Optional: Store the color in a table if needed
 end)
 
 texture_toggle:bindToEvent('onToggle', function(state)
