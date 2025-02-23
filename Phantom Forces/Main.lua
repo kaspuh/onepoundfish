@@ -436,6 +436,11 @@ local tracer_toggle = esp_section:addToggle({
     state = false,
 })
 
+local head_dot_toggle = esp_section:addToggle({
+    text = 'Head Dot',
+    state = false,
+})
+
 local distance_toggle = esp_section:addToggle({
     text = 'Distance',
     state = false,
@@ -679,6 +684,29 @@ esp_toggle:bindToEvent('onToggle', function(state)
                                 )
                             else
                                 cache.distance_label.Visible = false
+                            end
+
+                            -- Head Dot ESP
+                            if head_dot_toggle:getState() then
+                                if not cache.head_dot then
+                                    cache.head_dot = Drawing.new("Circle")
+                                end
+                                local head_w2s, head_on_screen = camera:WorldToViewportPoint(head.Position)
+                                if head_on_screen then
+                                    cache.head_dot.Visible = true
+                                    cache.head_dot.Color = Color3.fromRGB(255, 255, 255)
+                                    cache.head_dot.Thickness = 1
+                                    cache.head_dot.Filled = true
+                                    cache.head_dot.Transparency = 1
+                                    cache.head_dot.Radius = (box_scale.Y / 20) -- 1/5th the size of the head
+                                    cache.head_dot.Position = Vector2.new(head_w2s.X, head_w2s.Y)
+                                else
+                                    cache.head_dot.Visible = false
+                                end
+                            else
+                                if cache.head_dot then
+                                    cache.head_dot.Visible = false
+                                end
                             end
                         else
                             uncache_object(player)
