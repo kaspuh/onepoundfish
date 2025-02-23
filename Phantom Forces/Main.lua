@@ -6,6 +6,9 @@ local camera = workspace.CurrentCamera
 local user_input_service = game:GetService("UserInputService")
 local easing_strength = 0.1
 local is_visibility_check_enabled = false
+local original_properties = {}
+local is_optimized = false 
+
 
 --// variables
 local fov_circle = Drawing.new("Circle")
@@ -228,6 +231,63 @@ local function aim_at()
     end
 end
 
+local function store_original_properties(instance)
+    if instance:IsA("BasePart") or instance:IsA("UnionOperation") or instance:IsA("MeshPart") then
+        original_properties[instance] = {
+            material = instance.Material,
+            reflectance = instance.Reflectance,
+            cast_shadow = instance.CastShadow,
+            texture_id = instance:FindFirstChild("TextureId") and instance.TextureId or nil
+        }
+    end
+end
+
+local function optimize_map()
+    local map = workspace:FindFirstChild("Map")
+    if not map then
+        warn("Map not found in workspace. Aborting optimization.")
+        return
+    end
+
+    local descendants = map:GetDescendants()
+    for _, instance in ipairs(descendants) do
+        store_original_properties(instance) -- Store original properties before optimizing
+        
+        if instance:IsA("BasePart") or instance:IsA("UnionOperation") or instance:IsA("MeshPart") then
+            instance.Material = Enum.Material.SmoothPlastic
+            instance.Reflectance = 0
+            instance.CastShadow = false
+            if instance:IsA("MeshPart") and instance:FindFirstChild("TextureId") then
+                instance.TextureId = ""
+            end
+        end
+    end
+    is_optimized = true -- Set the flag to true after optimization
+    print("Map fully optimized: Textures removed, materials simplified, and performance improved.")
+end
+
+local function revert_map()
+    local map = workspace:FindFirstChild("Map")
+    if not map then
+        warn("Map not found in workspace. Aborting reversion.")
+        return
+    end
+
+    local descendants = map:GetDescendants()
+    for _, instance in ipairs(descendants) do
+        if original_properties[instance] then
+            instance.Material = original_properties[instance].material
+            instance.Reflectance = original_properties[instance].reflectance
+            instance.CastShadow = original_properties[instance].cast_shadow
+            if instance:IsA("MeshPart") and instance:FindFirstChild("TextureId") then
+                instance.TextureId = original_properties[instance].texture_id or ""
+            end
+        end
+    end
+    is_optimized = false -- Set the flag to false after reversion
+    print("Map reverted to original state.")
+end
+
 local function is_visible(target_part)
     if is_visibility_check_enabled then
         local ray = Ray.new(camera.CFrame.Position, (target_part.Position - camera.CFrame.Position).unit * 1000)
@@ -447,6 +507,19 @@ local jump_delay_bypass_toggle = fun_mods:addToggle({
     state = false
 })
 
+local misc_mods = window:addMenu({
+    text = "Misc"
+})
+
+local optimizations = misc_mods:addSection({
+    text = "Misc Mods"
+})
+
+local texture_toggle = optimizations:addToggle({
+     text = "Toggle Textures",
+     state = false
+})
+
 local t_speed = walk_speed_slider:getValue()
 
 local function get_character()
@@ -629,6 +702,13 @@ esp_toggle:bindToEvent('onToggle', function(state)
     end
 end)
 
+texture_toggle:bindToEvent('onToggle', function(state)
+    if state then
+        optimize_map() -- Optimize the map when the toggle is enabled
+    else
+        revert_map() -- Revert the map when the toggle is disabled
+    end
+end)
 user_input_service.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed or not window then return end  -- Ignore if game processed input or window is nil
 
