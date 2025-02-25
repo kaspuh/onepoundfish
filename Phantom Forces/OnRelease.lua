@@ -16,7 +16,6 @@ local target_part = nil
 local is_fov_enabled = false
 local is_auto_target_switch_enabled = false
 
-
 local fov_circle = Drawing.new("Circle")
 fov_circle.Visible = false
 fov_circle.Color = Color3.fromRGB(255, 255, 255)
