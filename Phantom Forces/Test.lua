@@ -278,12 +278,12 @@ local env = identifyexecutor()
 local ui = ui_loader({ rounding = false, theme = 'lime', smoothDragging = false })
 ui.autoDisableToggles = true
 
-local window = ui.newWindow({ text = 'Crobster.lol | DEV TEST V0.8 | discord.gg/getxeno', resize = false, size = Vector2.new(550, 376) })
+local window = ui.newWindow({ text = 'Crobster.lol | DEV TEST V0.8 | dsc.gg/crobsterlol', resize = false, size = Vector2.new(550, 376) })
 local menu = window:addMenu({ text = 'Main' })
 
 local aimbot_section
 if env == "Xeno" then
-    aimbot_section = menu:addSection({ text = 'Aimbot', side = 'left', showMinButton = false }):addLabel({ text = 'Xeno Doesn\'t have Aimbot Support :(' })
+    aimbot_section = menu:addSection({ text = 'Aimbot', side = 'left', showMinButton = false }):addLabel({ text = 'Xeno Doesn\'t have Aimbot Support' })
 else
     aimbot_section = menu:addSection({ text = 'Aimbot', side = 'left', showMinButton = false })
     local aimbot_toggle = aimbot_section:addToggle({ text = 'Enabled', state = false })
@@ -364,6 +364,148 @@ local safety_section = misc_mods:addSection({ text = "Safety", side = "right" })
 local votekick_rejoiner_toggle = safety_section:addToggle({ text = "Anti Votekick", state = false })
 local texture_toggle = optimizations:addToggle({ text = "Toggle Textures", state = false })
 
+local configs_menu = window:addMenu({ text = 'Configs' })
+local configs_section = configs_menu:addSection({ text = 'Configuration', side = 'left' })
+
+local save_config_button = configs_section:addButton({ text = 'Save Config' })
+local load_config_button = configs_section:addButton({ text = 'Load Config' })
+
+local function save_config()
+    local config = {
+        easing_strength = easing_strength,
+        tween_sensitivity = tween_sensitivity.Value,
+        is_visibility_check_enabled = is_visibility_check_enabled,
+        is_optimized = is_optimized,
+        is_fov_enabled = is_fov_enabled,
+        is_auto_target_switch_enabled = is_auto_target_switch_enabled,
+        fov_circle_radius = fov_circle.Radius,
+        features = features,
+        aimbot = {
+            is_aimbot_enabled = is_aimbot_enabled,
+            is_auto_target_switch_enabled = is_auto_target_switch_enabled,
+            wall_check_enabled = wall_check_toggle and wall_check_toggle.enabled or false
+        },
+        esp = {
+            esp_enabled = esp_toggle and esp_toggle.enabled or false,
+            box_enabled = box_toggle and box_toggle.enabled or false,
+            tracer_enabled = tracer_toggle and tracer_toggle.enabled or false,
+            head_dot_enabled = head_dot_toggle and head_dot_toggle.enabled or false,
+            distance_enabled = distance_toggle and distance_toggle.enabled or false,
+            name_enabled = name_toggle and name_toggle.enabled or false,
+            visibility_enabled = visibility_toggle and visibility_toggle.enabled or false
+        },
+        player = {
+            jump_delay_bypass_enabled = jump_delay_bypass_toggle and jump_delay_bypass_toggle.enabled or false,
+            texture_enabled = texture_toggle and texture_toggle.enabled or false,
+            votekick_rejoiner_enabled = votekick_rejoiner_toggle and votekick_rejoiner_toggle.enabled or false
+        }
+    }
+
+    local json = game:GetService("HttpService"):JSONEncode(config)
+    local folder = "Crobster.lol"
+    local file_path = folder .. "/config.lol"
+
+    if not isfolder(folder) then
+        makefolder(folder)
+    end
+
+    writefile(file_path, json)
+    print("Config saved successfully!")
+end
+
+local function load_config()
+    local folder = "Crobster.lol"
+    local file_path = folder .. "/config.lol"
+
+    if isfile(file_path) then
+        local json = readfile(file_path)
+        local config = game:GetService("HttpService"):JSONDecode(json)
+
+        -- Load general settings
+        easing_strength = config.easing_strength or 0.1
+        tween_sensitivity.Value = config.tween_sensitivity or 0.1
+        is_visibility_check_enabled = config.is_visibility_check_enabled or false
+        is_optimized = config.is_optimized or false
+        is_fov_enabled = config.is_fov_enabled or false
+        is_auto_target_switch_enabled = config.is_auto_target_switch_enabled or false
+        fov_circle.Radius = config.fov_circle_radius or 100
+
+        -- Load features table with default values
+        features = config.features or {
+            box = { color = Color3.fromRGB(255, 255, 255), border_size_pixel = 1 },
+            tracer = { color = Color3.fromRGB(255, 255, 255), thickness = 1 },
+            distance_text = { size = 14, color = Color3.fromRGB(255, 255, 255) },
+            chams = { team_check = true }
+        }
+
+        -- Update UI elements to reflect loaded config
+        easing_slider:setValue(easing_strength)
+        visibility_toggle.enabled = is_visibility_check_enabled
+        fov_toggle.enabled = is_fov_enabled
+        fov_radius_slider:setValue(fov_circle.Radius)
+        box_color_picker:setColor(features.box.color or Color3.fromRGB(255, 255, 255))
+        tracer_color_picker:setColor(features.tracer.color or Color3.fromRGB(255, 255, 255))
+        distance_color_picker:setColor(features.distance_text.color or Color3.fromRGB(255, 255, 255))
+        name_color_picker:setColor(features.name_color or Color3.fromRGB(255, 255, 255))
+        head_dot_color_picker:setColor(features.head_dot_color or Color3.fromRGB(255, 255, 255))
+
+        -- Load aimbot settings
+        if config.aimbot then
+            if aimbot_toggle then
+                aimbot_toggle.enabled = config.aimbot.is_aimbot_enabled or false
+            end
+            if auto_target_switch_toggle then
+                auto_target_switch_toggle.enabled = config.aimbot.is_auto_target_switch_enabled or false
+            end
+            if wall_check_toggle then
+                wall_check_toggle.enabled = config.aimbot.wall_check_enabled or false
+            end
+        end
+
+        -- Load ESP settings
+        if config.esp then
+            if esp_toggle then
+                esp_toggle.enabled = config.esp.esp_enabled or false
+            end
+            if box_toggle then
+                box_toggle.enabled = config.esp.box_enabled or false
+            end
+            if tracer_toggle then
+                tracer_toggle.enabled = config.esp.tracer_enabled or false
+            end
+            if head_dot_toggle then
+                head_dot_toggle.enabled = config.esp.head_dot_enabled or false
+            end
+            if distance_toggle then
+                distance_toggle.enabled = config.esp.distance_enabled or false
+            end
+            if name_toggle then
+                name_toggle.enabled = config.esp.name_enabled or false
+            end
+            if visibility_toggle then
+                visibility_toggle.enabled = config.esp.visibility_enabled or false
+            end
+        end
+
+        -- Load player settings
+        if config.player then
+            if jump_delay_bypass_toggle then
+                jump_delay_bypass_toggle.enabled = config.player.jump_delay_bypass_enabled or false
+            end
+            if texture_toggle then
+                texture_toggle.enabled = config.player.texture_enabled or false
+            end
+            if votekick_rejoiner_toggle then
+                votekick_rejoiner_toggle.enabled = config.player.votekick_rejoiner_enabled or false
+            end
+        end
+
+        print("Config loaded successfully!")
+    else
+        print("No config file found!")
+    end
+end
+
 local t_speed = walk_speed_slider:getValue()
 
 local function get_character()
@@ -381,6 +523,8 @@ easing_slider:bindToEvent('onNewValue', function(value) update_sensitivity(value
 visibility_toggle:bindToEvent('onToggle', function(state) is_visibility_check_enabled = state end)
 fov_toggle:bindToEvent('onToggle', function(state) is_fov_enabled = state; fov_circle.Visible = state end)
 fov_radius_slider:bindToEvent('onNewValue', function(value) fov_circle.Radius = value end)
+save_config_button:bindToEvent('onClick', save_config)
+load_config_button:bindToEvent('onClick', load_config)
 
 local lastJumpTime = 0
 local jumpCooldown = 0.8681
@@ -592,3 +736,5 @@ while tp_walking do
         hb:Wait()
     end
 end
+
+
