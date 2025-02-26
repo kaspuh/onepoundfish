@@ -166,6 +166,8 @@ local function get_closest_player()
     return closest_part
 end
 
+
+
 local interpolation_connection = nil
 
 local function aim_at()
@@ -210,7 +212,6 @@ local function update_sensitivity(new_sensitivity)
     local tween = tween_service:Create(tween_sensitivity, tween_info, {Value = new_sensitivity})
     tween:Play()
 end
-
 
 local function store_original_properties(instance)
     if instance:IsA("BasePart") or instance:IsA("UnionOperation") or instance:IsA("MeshPart") then
@@ -273,53 +274,59 @@ end
 local ui_loader = loadstring(game:HttpGet('https://raw.githubusercontent.com/kaspuh/wanpaundfeesh/refs/heads/main/ui-lib'))
 getgenv().jump_height_value = 30
 
+local env = identifyexecutor()
 local ui = ui_loader({ rounding = false, theme = 'lime', smoothDragging = false })
 ui.autoDisableToggles = true
 
 local window = ui.newWindow({ text = 'Crobster.lol | DEV TEST V0.8 | dsc.gg/crobsterlol', resize = false, size = Vector2.new(550, 376) })
 local menu = window:addMenu({ text = 'Main' })
 
-local aimbot_section = menu:addSection({ text = 'Aimbot', side = 'left', showMinButton = false })
-local aimbot_toggle = aimbot_section:addToggle({ text = 'Enabled', state = false })
-local wall_check_toggle = aimbot_section:addToggle({ text = 'Wall Check', state = false })
-local auto_target_switch_toggle = aimbot_section:addToggle({ text = 'Auto Target Switch', state = false })
+local aimbot_section
+if env == "Xeno" then
+    aimbot_section = menu:addSection({ text = 'Aimbot', side = 'left', showMinButton = false }):addLabel({ text = 'Xeno Doesn\'t have Aimbot Support' })
+else
+    aimbot_section = menu:addSection({ text = 'Aimbot', side = 'left', showMinButton = false })
+    local aimbot_toggle = aimbot_section:addToggle({ text = 'Enabled', state = false })
+    local wall_check_toggle = aimbot_section:addToggle({ text = 'Wall Check', state = false })
+    local auto_target_switch_toggle = aimbot_section:addToggle({ text = 'Auto Target Switch', state = false })
+  
+    auto_target_switch_toggle:bindToEvent('onToggle', function(new_state) is_auto_target_switch_enabled = new_state end)
 
-auto_target_switch_toggle:bindToEvent('onToggle', function(new_state) is_auto_target_switch_enabled = new_state end)
-
-aimbot_toggle:bindToEvent('onToggle', function(new_state)
-    is_aimbot_enabled = new_state
-    if is_aimbot_enabled then
-        input_began_connection = user_input_service.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton2 then
-                is_right_click_held = true
-                target_part = get_closest_player()
-            end
-        end)
-
-        input_ended_connection = user_input_service.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton2 then
-                is_right_click_held = false
-                target_part = nil
-            end
-        end)
-
-        render_stepped_connection = run_service.RenderStepped:Connect(function()
-            if is_right_click_held and target_part then
-                if wall_check_toggle:getState() then
-                    if is_visible(target_part) then aim_at() end
-                else
-                    aim_at()
+    aimbot_toggle:bindToEvent('onToggle', function(new_state)
+        is_aimbot_enabled = new_state
+        if is_aimbot_enabled then
+            input_began_connection = user_input_service.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                    is_right_click_held = true
+                    target_part = get_closest_player()
                 end
-            end
-        end)
-    else
-        is_right_click_held = false
-        target_part = nil
-        if input_began_connection then input_began_connection:Disconnect() end
-        if input_ended_connection then input_ended_connection:Disconnect() end
-        if render_stepped_connection then render_stepped_connection:Disconnect() end
-    end
-end)
+            end)
+
+            input_ended_connection = user_input_service.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                    is_right_click_held = false
+                    target_part = nil
+                end
+            end)
+
+            render_stepped_connection = run_service.RenderStepped:Connect(function()
+                if is_right_click_held and target_part then
+                    if wall_check_toggle:getState() then
+                        if is_visible(target_part) then aim_at() end
+                    else
+                        aim_at()
+                    end
+                end
+            end)
+        else
+            is_right_click_held = false
+            target_part = nil
+            if input_began_connection then input_began_connection:Disconnect() end
+            if input_ended_connection then input_ended_connection:Disconnect() end
+            if render_stepped_connection then render_stepped_connection:Disconnect() end
+        end
+    end)
+end
 
 local easing_slider = aimbot_section:addSlider({ text = 'Strength', min = 0.1, max = 1.5, default = 0.1, float = true, step = 0.1 })
 local aimbot_warning_text = aimbot_section:addLabel({ text = "* Values above 1 will be shaky!" })
@@ -786,3 +793,5 @@ while tp_walking do
         hb:Wait()
     end
 end
+
+
