@@ -8,7 +8,11 @@ local tween_service = game:GetService("TweenService")
 local easing_strength = 0.1
 local tween_sensitivity = Instance.new("NumberValue")
 tween_sensitivity.Value = 0.1
+local is_max_distance_enabled = false
+local max_lock_on_distance = 500 
 local is_visibility_check_enabled = false
+local is_esp_max_distance_enabled = false
+local esp_max_distance = 500
 local original_properties = {}
 local is_optimized = false
 local is_right_click_held = false
@@ -136,11 +140,16 @@ local function get_closest_player()
             if on_screen then
                 local screen_position = Vector2.new(part_position.X, part_position.Y)
                 local distance_to_center = (screen_position - screen_center).Magnitude
+                local distance_to_camera = (head.Position - camera.CFrame.Position).Magnitude
+
+                -- Check if the player is within the max lock-on distance
+                if is_max_distance_enabled and distance_to_camera > max_lock_on_distance then
+                    continue -- Skip this player if they are too far away
+                end
 
                 if is_fov_enabled then
                     if distance_to_center <= fov_circle.Radius then
-                        local distance_to_camera = (head.Position - camera.CFrame.Position).Magnitude
-                        if distance_to_camera <= 20 then
+                        if distance_to_camera <= 30 then
                             closest_part = head
                             break
                         end
@@ -150,8 +159,7 @@ local function get_closest_player()
                         end
                     end
                 else
-                    local distance_to_camera = (head.Position - camera.CFrame.Position).Magnitude
-                    if distance_to_camera <= 20 then
+                    if distance_to_camera <= 30 then
                         closest_part = head
                         break
                     end
@@ -165,8 +173,6 @@ local function get_closest_player()
     end
     return closest_part
 end
-
-
 
 local interpolation_connection = nil
 
@@ -212,6 +218,7 @@ local function update_sensitivity(new_sensitivity)
     local tween = tween_service:Create(tween_sensitivity, tween_info, {Value = new_sensitivity})
     tween:Play()
 end
+
 
 local function store_original_properties(instance)
     if instance:IsA("BasePart") or instance:IsA("UnionOperation") or instance:IsA("MeshPart") then
@@ -275,58 +282,66 @@ local ui_loader = loadstring(game:HttpGet('https://raw.githubusercontent.com/kas
 getgenv().jump_height_value = 30
 
 local env = identifyexecutor()
+if env == "Xeno" then local_player:Kick("Use another Executor!!")
+else
+end
+
 local ui = ui_loader({ rounding = false, theme = 'lime', smoothDragging = false })
 ui.autoDisableToggles = true
 
-local window = ui.newWindow({ text = 'Crobster.lol | DEV TEST V0.8 | discord.gg/getxeno', resize = false, size = Vector2.new(550, 376) })
+local window = ui.newWindow({ text = 'Crobster.lol | DEV TEST V0.8 | dsc.gg/crobsterlol', resize = false, size = Vector2.new(550, 376) })
 local menu = window:addMenu({ text = 'Main' })
 
-local aimbot_section
-if env == "Xeno" then
-    aimbot_section = menu:addSection({ text = 'Aimbot', side = 'left', showMinButton = false }):addLabel({ text = 'Xeno Doesn\'t have Aimbot Support :(' })
-else
-    aimbot_section = menu:addSection({ text = 'Aimbot', side = 'left', showMinButton = false })
-    local aimbot_toggle = aimbot_section:addToggle({ text = 'Enabled', state = false })
-    local wall_check_toggle = aimbot_section:addToggle({ text = 'Wall Check', state = false })
-    local auto_target_switch_toggle = aimbot_section:addToggle({ text = 'Auto Target Switch', state = false })
-  
-    auto_target_switch_toggle:bindToEvent('onToggle', function(new_state) is_auto_target_switch_enabled = new_state end)
+local aimbot_section = menu:addSection({ text = 'Aimbot', side = 'left', showMinButton = false })
+local aimbot_toggle = aimbot_section:addToggle({ text = 'Enabled', state = false })
+local wall_check_toggle = aimbot_section:addToggle({ text = 'Wall Check', state = false })
+local auto_target_switch_toggle = aimbot_section:addToggle({ text = 'Auto Target Switch', state = false })
+local max_distance_toggle = aimbot_section:addToggle({ text = 'Use Max Distance', state = false })
+local max_distance_slider = aimbot_section:addSlider({ text = 'Max Distance', min = 50, max = 1000, default = 500, float = false, step = 10 })
 
-    aimbot_toggle:bindToEvent('onToggle', function(new_state)
-        is_aimbot_enabled = new_state
-        if is_aimbot_enabled then
-            input_began_connection = user_input_service.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton2 then
-                    is_right_click_held = true
-                    target_part = get_closest_player()
-                end
-            end)
+auto_target_switch_toggle:bindToEvent('onToggle', function(new_state) is_auto_target_switch_enabled = new_state end)
+max_distance_toggle:bindToEvent('onToggle', function(new_state)
+    is_max_distance_enabled = new_state
+end)
 
-            input_ended_connection = user_input_service.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton2 then
-                    is_right_click_held = false
-                    target_part = nil
-                end
-            end)
+max_distance_slider:bindToEvent('onNewValue', function(new_value)
+    max_lock_on_distance = new_value
+end)
 
-            render_stepped_connection = run_service.RenderStepped:Connect(function()
-                if is_right_click_held and target_part then
-                    if wall_check_toggle:getState() then
-                        if is_visible(target_part) then aim_at() end
-                    else
-                        aim_at()
-                    end
+aimbot_toggle:bindToEvent('onToggle', function(new_state)
+    is_aimbot_enabled = new_state
+    if is_aimbot_enabled then
+        input_began_connection = user_input_service.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                is_right_click_held = true
+                target_part = get_closest_player()
+            end
+        end)
+
+        input_ended_connection = user_input_service.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                is_right_click_held = false
+                target_part = nil
+            end
+        end)
+
+        render_stepped_connection = run_service.RenderStepped:Connect(function()
+            if is_right_click_held and target_part then
+                if wall_check_toggle:getState() then
+                    if is_visible(target_part) then aim_at() end
+                else
+                    aim_at()
                 end
-            end)
-        else
-            is_right_click_held = false
-            target_part = nil
-            if input_began_connection then input_began_connection:Disconnect() end
-            if input_ended_connection then input_ended_connection:Disconnect() end
-            if render_stepped_connection then render_stepped_connection:Disconnect() end
-        end
-    end)
-end
+            end
+        end)
+    else
+        is_right_click_held = false
+        target_part = nil
+        if input_began_connection then input_began_connection:Disconnect() end
+        if input_ended_connection then input_ended_connection:Disconnect() end
+        if render_stepped_connection then render_stepped_connection:Disconnect() end
+    end
+end)
 
 local easing_slider = aimbot_section:addSlider({ text = 'Strength', min = 0.1, max = 1.5, default = 0.1, float = true, step = 0.1 })
 local aimbot_warning_text = aimbot_section:addLabel({ text = "* Values above 1 will be shaky!" })
@@ -339,12 +354,14 @@ local head_dot_toggle = esp_section:addToggle({ text = 'Head Dot', state = false
 local distance_toggle = esp_section:addToggle({ text = 'Distance', state = false })
 local name_toggle = esp_section:addToggle({ text = 'Name', state = false })
 local visibility_toggle = esp_section:addToggle({ text = 'Wall Check', state = false })
+local esp_max_distance_toggle = esp_section:addToggle({ text = 'Use Max Distance', state = false })
 
 local box_color_picker = esp_section:addColorPicker({ text = 'Box Color', color = Color3.fromRGB(255, 255, 255) })
 local tracer_color_picker = esp_section:addColorPicker({ text = 'Tracer Color', color = Color3.fromRGB(255, 255, 255) })
 local distance_color_picker = esp_section:addColorPicker({ text = 'Distance Color', color = Color3.fromRGB(255, 255, 255) })
 local head_dot_color_picker = esp_section:addColorPicker({ text = 'Head Dot Color', color = Color3.fromRGB(255, 255, 255) })
 local name_color_picker = esp_section:addColorPicker({ text = 'Name Color', color = Color3.fromRGB(255, 255, 255) })
+local esp_max_distance_slider = esp_section:addSlider({ text = 'Max Distance', min = 50, max = 1000, default = 500, float = false, step = 10 })
 
 local fov_section = menu:addSection({ text = 'FOV', side = 'left', showMinButton = false })
 local fov_toggle = fov_section:addToggle({ text = 'Show FOV Circle', state = false })
@@ -353,7 +370,7 @@ local fov_radius_slider = fov_section:addSlider({ text = 'FOV Radius', min = 50,
 local player_menu = window:addMenu({ text = 'Player' })
 local player_mods = player_menu:addSection({ text = 'LocalPlayer Mods', side = 'left' })
 local walk_speed_slider = player_mods:addSlider({ text = 'WalkSpeed', min = 0, max = 0.17, default = 0, float = true, step = 0.01 })
-local jump_height_slider = player_mods:addSlider({ text = 'JumpPower', min = 0, max = 100, default = 50, float = true, step = 1 })
+local jump_height_slider = player_mods:addSlider({ text = 'JumpPower', min = 30, max = 100, default = 50, float = true, step = 1 })
 
 local fun_mods = player_menu:addSection({ text = "Fun Mods" })
 local jump_delay_bypass_toggle = fun_mods:addToggle({ text = 'Jump Delay Bypass', state = false })
@@ -364,7 +381,285 @@ local safety_section = misc_mods:addSection({ text = "Safety", side = "right" })
 local votekick_rejoiner_toggle = safety_section:addToggle({ text = "Anti Votekick", state = false })
 local texture_toggle = optimizations:addToggle({ text = "Toggle Textures", state = false })
 
+local configs_menu = window:addMenu({ text = 'Configs' })
+local configs_section = configs_menu:addSection({ text = 'Configuration', side = 'left' })
+
+local save_config_button = configs_section:addButton({ text = 'Save Config' })
+local load_config_button = configs_section:addButton({ text = 'Load Config' })
+
+local function reset_settings()
+    -- Reset general settings
+    easing_strength = 0.1
+    tween_sensitivity.Value = 0.1
+    is_visibility_check_enabled = false
+    is_optimized = false
+    is_fov_enabled = false
+    is_auto_target_switch_enabled = false
+    fov_circle.Radius = 100
+
+    -- Reset features table
+    features = {
+        box = { color = Color3.fromRGB(255, 255, 255), border_size_pixel = 1 },
+        tracer = { color = Color3.fromRGB(255, 255, 255), thickness = 1 },
+        distance_text = { size = 14, color = Color3.fromRGB(255, 255, 255) },
+        name = { color = Color3.fromRGB(255, 255, 255) },
+        head_dot = { color = Color3.fromRGB(255, 255, 255) },
+        chams = { team_check = true }
+    }
+
+    -- Reset UI elements
+    easing_slider:setValue(easing_strength)
+    visibility_toggle:setState(is_visibility_check_enabled)
+    fov_toggle:setState(is_fov_enabled)
+    fov_radius_slider:setValue(fov_circle.Radius)
+    box_color_picker:setColor(features.box.color)
+    tracer_color_picker:setColor(features.tracer.color)
+    distance_color_picker:setColor(features.distance_text.color)
+    name_color_picker:setColor(features.name.color)
+    head_dot_color_picker:setColor(features.head_dot.color)
+
+    -- Reset aimbot settings
+    if aimbot_toggle then aimbot_toggle:setState(false) end
+    if auto_target_switch_toggle then auto_target_switch_toggle:setState(false) end
+    if wall_check_toggle then wall_check_toggle:setState(false) end
+
+    -- Reset ESP settings
+    if esp_toggle then esp_toggle:setState(false) end
+    if box_toggle then box_toggle:setState(false) end
+    if tracer_toggle then tracer_toggle:setState(false) end
+    if head_dot_toggle then head_dot_toggle:setState(false) end
+    if distance_toggle then distance_toggle:setState(false) end
+    if name_toggle then name_toggle:setState(false) end
+    if visibility_toggle then visibility_toggle:setState(false) end
+
+    -- Reset player settings
+    if walk_speed_slider then walk_speed_slider:setValue(0) end
+    if jump_height_slider then jump_height_slider:setValue(30) end
+    if jump_delay_bypass_toggle then jump_delay_bypass_toggle:setState(false) end
+
+    -- Reset misc settings
+    if texture_toggle then texture_toggle:setState(false) end
+    if votekick_rejoiner_toggle then votekick_rejoiner_toggle:setState(false) end
+
+    -- Clear ESP cache
+    for player in pairs(storage.esp_cache) do uncache_object(player) end
+
+    -- Revert map optimizations
+    revert_map()
+
+    print("Settings reset to default.")
+end
+
+local function save_config()
+    local config = {
+        easing_strength = easing_strength,
+        tween_sensitivity = tween_sensitivity.Value,
+        is_visibility_check_enabled = is_visibility_check_enabled,
+        is_optimized = is_optimized,
+        is_fov_enabled = is_fov_enabled,
+        is_auto_target_switch_enabled = is_auto_target_switch_enabled,
+        fov_circle_radius = fov_circle.Radius,
+        is_max_distance_enabled = is_max_distance_enabled,
+        max_lock_on_distance = max_lock_on_distance, 
+        features = {
+            box = {
+                color = { box_color_picker:getColor().r, box_color_picker:getColor().g, box_color_picker:getColor().b },
+                border_size_pixel = features.box.border_size_pixel
+            },
+            tracer = {
+                color = { tracer_color_picker:getColor().r, tracer_color_picker:getColor().g, tracer_color_picker:getColor().b },
+                thickness = features.tracer.thickness
+            },
+            distance_text = {
+                color = { distance_color_picker:getColor().r, distance_color_picker:getColor().g, distance_color_picker:getColor().b },
+                size = features.distance_text.size
+            },
+            name = {
+                color = { name_color_picker:getColor().r, name_color_picker:getColor().g, name_color_picker:getColor().b }
+            },
+            head_dot = {
+                color = { head_dot_color_picker:getColor().r, head_dot_color_picker:getColor().g, head_dot_color_picker:getColor().b }
+            },
+            chams = {
+                team_check = features.chams.team_check
+            }
+        },
+        aimbot = {
+            is_aimbot_enabled = aimbot_toggle and aimbot_toggle:getState() or false,
+            is_auto_target_switch_enabled = auto_target_switch_toggle and auto_target_switch_toggle:getState() or false,
+            wall_check_enabled = wall_check_toggle and wall_check_toggle:getState() or false
+        },
+        esp = {
+            esp_enabled = esp_toggle and esp_toggle:getState() or false,
+            box_enabled = box_toggle and box_toggle:getState() or false,
+            tracer_enabled = tracer_toggle and tracer_toggle:getState() or false,
+            head_dot_enabled = head_dot_toggle and head_dot_toggle:getState() or false,
+            distance_enabled = distance_toggle and distance_toggle:getState() or false,
+            name_enabled = name_toggle and name_toggle:getState() or false,
+            visibility_enabled = visibility_toggle and visibility_toggle:getState() or false
+        },
+        player = {
+            walk_speed = walk_speed_slider and walk_speed_slider:getValue() or 0,
+            jump_height = jump_height_slider and jump_height_slider:getValue() or 30,
+            jump_delay_bypass = jump_delay_bypass_toggle and jump_delay_bypass_toggle:getState() or false
+        },
+        misc = {
+            texture_enabled = texture_toggle and texture_toggle:getState() or false,
+            votekick_rejoiner = votekick_rejoiner_toggle and votekick_rejoiner_toggle:getState() or false
+        }
+    }
+
+    local json = game:GetService("HttpService"):JSONEncode(config)
+    local folder = "Crobster.lol"
+    local file_path = folder .. "/config.lol"
+
+    if not isfolder(folder) then
+        makefolder(folder)
+    end
+
+    writefile(file_path, json)
+    print("Config saved successfully!")
+end
+
+local function load_config()
+    reset_settings()  -- Reset all settings before loading new config
+
+    local folder = "Crobster.lol"
+    local file_path = folder .. "/config.lol"
+
+    if isfile(file_path) then
+        local json = readfile(file_path)
+        local config = game:GetService("HttpService"):JSONDecode(json)
+
+        -- Load general settings
+        easing_strength = config.easing_strength
+        tween_sensitivity.Value = config.tween_sensitivity
+        is_visibility_check_enabled = config.is_visibility_check_enabled or false
+        is_optimized = config.is_optimized or false
+        is_fov_enabled = config.is_fov_enabled or false
+        is_auto_target_switch_enabled = config.is_auto_target_switch_enabled or false
+        fov_circle.Radius = config.fov_circle_radius or 100
+        is_max_distance_enabled = config.is_max_distance_enabled or false
+        max_lock_on_distance = config.max_lock_on_distance or 500
+        max_distance_toggle:setState(is_max_distance_enabled)
+        max_distance_slider:setValue(max_lock_on_distance)
+
+    
+        if config.features then
+            features = {
+                box = {
+                    color = Color3.new(unpack(config.features.box.color or {1, 1, 1})),
+                    border_size_pixel = config.features.box.border_size_pixel or 1
+                },
+                tracer = {
+                    color = Color3.new(unpack(config.features.tracer.color or {1, 1, 1})),
+                    thickness = config.features.tracer.thickness or 1
+                },
+                distance_text = {
+                    color = Color3.new(unpack(config.features.distance_text.color or {1, 1, 1})),
+                    size = config.features.distance_text.size or 14
+                },
+                name = {
+                    color = Color3.new(unpack(config.features.name.color or {1, 1, 1}))
+                },
+                head_dot = {
+                    color = Color3.new(unpack(config.features.head_dot.color or {1, 1, 1}))
+                },
+                chams = {
+                    team_check = config.features.chams.team_check or true
+                }
+            }
+        else
+            features = {
+                box = { color = Color3.fromRGB(255, 255, 255), border_size_pixel = 1 },
+                tracer = { color = Color3.fromRGB(255, 255, 255), thickness = 1 },
+                distance_text = { size = 14, color = Color3.fromRGB(255, 255, 255) },
+                name = { color = Color3.fromRGB(255, 255, 255) },
+                head_dot = { color = Color3.fromRGB(255, 255, 255) },
+                chams = { team_check = true }
+            }
+        end
+
+        -- Update UI elements to reflect loaded config
+        easing_slider:setValue(easing_strength)
+        visibility_toggle:setState(is_visibility_check_enabled)
+        fov_toggle:setState(is_fov_enabled)
+        fov_radius_slider:setValue(fov_circle.Radius)
+        box_color_picker:setColor(features.box.color)
+        tracer_color_picker:setColor(features.tracer.color)
+        distance_color_picker:setColor(features.distance_text.color)
+        name_color_picker:setColor(features.name.color)
+        head_dot_color_picker:setColor(features.head_dot.color)
+
+        -- Load aimbot settings
+        if config.aimbot then
+            if aimbot_toggle then
+                aimbot_toggle:setState(config.aimbot.is_aimbot_enabled or false)
+            end
+            if auto_target_switch_toggle then
+                auto_target_switch_toggle:setState(config.aimbot.is_auto_target_switch_enabled or false)
+            end
+            if wall_check_toggle then
+                wall_check_toggle:setState(config.aimbot.wall_check_enabled or false)
+            end
+        end
+
+        -- Load ESP settings
+        if config.esp then
+            if esp_toggle then
+                esp_toggle:setState(config.esp.esp_enabled or false)
+            end
+            if box_toggle then
+                box_toggle:setState(config.esp.box_enabled or false)
+            end
+            if tracer_toggle then
+                tracer_toggle:setState(config.esp.tracer_enabled or false)
+            end
+            if head_dot_toggle then
+                head_dot_toggle:setState(config.esp.head_dot_enabled or false)
+            end
+            if distance_toggle then
+                distance_toggle:setState(config.esp.distance_enabled or false)
+            end
+            if name_toggle then
+                name_toggle:setState(config.esp.name_enabled or false)
+            end
+            if visibility_toggle then
+                visibility_toggle:setState(config.esp.visibility_enabled or false)
+            end
+        end
+
+        -- Load player settings
+        if config.player then
+            if walk_speed_slider then
+                walk_speed_slider:setValue(config.player.walk_speed or 0)
+            end
+            if jump_height_slider then
+                jump_height_slider:setValue(config.player.jump_height or 30)
+            end
+            if jump_delay_bypass_toggle then
+                jump_delay_bypass_toggle:setState(config.player.jump_delay_bypass or false)
+            end
+        end
+
+        -- Load misc settings
+        if config.misc then
+            if texture_toggle then
+                texture_toggle:setState(config.misc.texture_enabled or false)
+            end
+            if votekick_rejoiner_toggle then
+                votekick_rejoiner_toggle:setState(config.misc.votekick_rejoiner or false)
+            end
+        end
+
+        print("Config loaded successfully!")
+    else
+        print("No config file found!")
+    end
+end
+
 local t_speed = walk_speed_slider:getValue()
+local j_power = jump_height_slider:getValue()
 
 local function get_character()
     local character
@@ -377,10 +672,22 @@ end
 
 walk_speed_slider:bindToEvent('onNewValue', function(walk_speed_func) t_speed = walk_speed_func end)
 jump_height_slider:bindToEvent('onNewValue', function(jump_height_func) getgenv().jump_height_value = jump_height_func end)
-easing_slider:bindToEvent('onNewValue', function(value) update_sensitivity(value) end)
+easing_slider:bindToEvent('onNewValue', function(value)
+    easing_strength = value
+    update_sensitivity(value)
+end)
+esp_max_distance_toggle:bindToEvent('onToggle', function(new_state)
+    is_esp_max_distance_enabled = new_state
+end)
+
+esp_max_distance_slider:bindToEvent('onNewValue', function(new_value)
+    esp_max_distance = new_value
+end)
 visibility_toggle:bindToEvent('onToggle', function(state) is_visibility_check_enabled = state end)
 fov_toggle:bindToEvent('onToggle', function(state) is_fov_enabled = state; fov_circle.Visible = state end)
 fov_radius_slider:bindToEvent('onNewValue', function(value) fov_circle.Radius = value end)
+save_config_button:bindToEvent('onClick', save_config)
+load_config_button:bindToEvent('onClick', load_config)
 
 local lastJumpTime = 0
 local jumpCooldown = 0.8681
@@ -433,10 +740,15 @@ esp_toggle:bindToEvent('onToggle', function(state)
                     if torso and head then
                         local w2s, on_screen = camera:WorldToViewportPoint(torso.Position)
                         if on_screen then
+                            local distance_to_camera = (head.Position - camera.CFrame.Position).Magnitude
                             local screen_position = Vector2.new(w2s.X, w2s.Y)
                             local screen_center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
                             local distance_to_center = (screen_position - screen_center).Magnitude
 
+                            if is_esp_max_distance_enabled and distance_to_camera > esp_max_distance then
+                                uncache_object(player) -- Skip rendering ESP for this player
+                                continue
+                            end
                             if not fov_toggle:getState() or distance_to_center <= fov_circle.Radius then
                                 local billboardGui = head:FindFirstChildOfClass("BillboardGui")
                                 local textLabel = billboardGui and billboardGui:FindFirstChildOfClass("TextLabel")
@@ -555,6 +867,9 @@ tracer_color_picker:bindToEvent('onColorChanged', function(new_color) features.t
 distance_color_picker:bindToEvent('onColorChanged', function(new_color) features.distance_text.color = new_color end)
 name_color_picker:bindToEvent('onColorChanged', function(new_color) features.name_color = new_color end)
 head_dot_color_picker:bindToEvent('onColorChanged', function(new_color) features.head_dot_color = new_color end)
+jump_height_slider:bindToEvent('onNewValue', function(jump_power_func)
+    j_power = jump_power_func
+end)
 
 texture_toggle:bindToEvent('onToggle', function(state)
     if state then optimize_map() else revert_map() end
@@ -574,21 +889,23 @@ while tp_walking do
     local chr = get_character()
     local hum = chr and chr:FindFirstChildWhichIsA("Humanoid")
 
-    hum.JumpPower = getgenv().jump_height_value
+    if hum then
+        hum.JumpPower = j_power
 
-    hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-        hum.JumpPower = getgenv().jump_height_value
-    end)
+        hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+            hum.JumpPower = j_power
+        end)
 
-    while chr and hum and hum.Parent and tp_walking do
-        if hum.MoveDirection.Magnitude > 0 then
-            if t_speed and is_number(t_speed) then
-                chr:TranslateBy(hum.MoveDirection * tonumber(t_speed))
-            else
-                chr:TranslateBy(hum.MoveDirection)
+        while chr and hum and hum.Parent and tp_walking do
+            if hum.MoveDirection.Magnitude > 0 then
+                if t_speed and is_number(t_speed) then
+                    chr:TranslateBy(hum.MoveDirection * tonumber(t_speed))
+                else
+                    chr:TranslateBy(hum.MoveDirection)
+                end
             end
+            if not chr.Parent then break end
+            hb:Wait()
         end
-        if not chr.Parent then break end
-        hb:Wait()
     end
 end
